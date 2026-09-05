@@ -1,0 +1,63 @@
+--//==================================================
+--// ANTI AFK
+--// LIGHT ACTIVITY + IDLED PROTECTION
+--// SAFE FOR AUTO HATCH / AUTO SELL
+--//==================================================
+
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LP = Players.LocalPlayer
+
+--==================================================
+-- CONFIG
+--==================================================
+
+local ACTIVITY_INTERVAL = 120 -- 2 menit
+local ENABLE_LIGHT_ACTIVITY = true
+
+--==================================================
+-- IDLED PROTECTION
+--==================================================
+
+LP.Idled:Connect(function()
+    -- Hanya menangani event idle.
+    -- Tidak menyentuh State Auto Hatch / Auto Sell.
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
+end)
+
+--==================================================
+-- LIGHT ACTIVITY
+--==================================================
+
+task.spawn(function()
+
+    while task.wait(ACTIVITY_INTERVAL) do
+
+        if ENABLE_LIGHT_ACTIVITY then
+
+            pcall(function()
+                VirtualUser:CaptureController()
+
+                -- Aktivitas mouse ringan.
+                VirtualUser:MoveMouse(
+                    Vector2.new(1, 1)
+                )
+
+                task.wait(0.1)
+
+                VirtualUser:MoveMouse(
+                    Vector2.new(0, 0)
+                )
+            end)
+
+        end
+
+    end
+
+end)
+
+print("[ANTI AFK] ON | IDLED + LIGHT ACTIVITY")
