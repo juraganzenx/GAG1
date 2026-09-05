@@ -1,292 +1,327 @@
---//==================================================
+--//===============A===================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL
---// DYNAMIC PETLIST + SEARCHBOX
---// 4 COLUMN CONFIG
---// SAVE CONFIG + SELECTED PETS
---// COMPACT GUI + DRAG
+--// 24/7 OPTIMIZED VERSION
+--//
+--// FEATURES
+--// - AUTO PETLIST FROM PetRegistry.PetList
+--// - SEARCH PET
+--// - 4 COLUMN CONFIG
+--// - BALD / MIMIC / PLACE EGG
+--// - BRONTO / KOI / SEAL
+--// - CONFIG SAVE
+--// - ON/OFF SAVE
+--// - SELECTED PET SAVE
+--// - MINIMIZE
+--// - STATE INDICATOR
+--// - DRAG GUI
+--// - LOG LIMIT
+--// - 24/7 OPTIMIZED
 --//==================================================
 
-local Players = game:GetService("Players")
-local RS = game:GetService("ReplicatedStorage")
-local UIS = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
 
-local LP = Players.LocalPlayer
-local PG = LP:WaitForChild("PlayerGui")
-local Backpack = LP:WaitForChild("Backpack")
+--==================================================
+-- SERVICES
+--==================================================
 
-local GameEvents = RS:WaitForChild("GameEvents")
+local Players =
+    game:GetService("Players")
+
+local RS =
+    game:GetService("ReplicatedStorage")
+
+local UIS =
+    game:GetService("UserInputService")
+
+local HttpService =
+    game:GetService("HttpService")
+
+
+local LP =
+    Players.LocalPlayer
+
+local PG =
+    LP:WaitForChild("PlayerGui")
+
+local Backpack =
+    LP:WaitForChild("Backpack")
+
+
+local GameEvents =
+    RS:WaitForChild("GameEvents")
+
 
 local PetsService =
     GameEvents:WaitForChild("PetsService")
 
+
 local PetEggService =
     GameEvents:WaitForChild("PetEggService")
+
 
 local SellRemote =
     GameEvents:WaitForChild("SellPet_RE")
 
 
 --==================================================
--- SAVE FILE
+-- SAVE
 --==================================================
 
-local CONFIG_FILE = "AutoHatchSpringtide_Config.json"
+local SAVE_FILE =
+    "AutoHatchSpringtide_Config.json"
 
 
---==================================================
--- DEFAULT CONFIG
---==================================================
-
-local Config = {
+local DefaultConfig = {
 
     -- COLUMN 1
+
     LOOP_DELAY = 1,
+
     EQUIP_DELAY = 0.5,
+
     AFTER_EQUIP_WAIT = 3,
 
+
     -- COLUMN 2
+
     TARGET_LIMIT = 30,
+
     MAX_EGG = 13,
+
     SELL_KG_LIMIT = 3,
 
+
     -- COLUMN 3
+
     BALD_TARGET = 1,
+
     MIMIC_TARGET = 7,
+
     PLACE_BATCH = 10,
 
+
     -- COLUMN 4
+
     BRONTO_TARGET = 2,
+
     KOI_TARGET = 5,
+
     SEAL_TARGET = 8,
 
-    -- OTHER
+
+    -- INTERNAL
+
     PLACE_DELAY = 0.15,
+
     AFTER_PLACE_WAIT = 1,
+
     SELL_DELAY = 0,
+
     HATCH_DELAY = 0
 }
 
 
---==================================================
--- LOAD CONFIG
---==================================================
+local Config = {}
+
+for Key, Value in pairs(DefaultConfig) do
+    Config[Key] = Value
+end
+
+
+local SavedData = nil
+
+
+pcall(function()
+
+    if isfile and
+        isfile(SAVE_FILE) then
+
+        local Raw =
+            readfile(SAVE_FILE)
+
+        SavedData =
+            HttpService:JSONDecode(Raw)
+    end
+
+end)
+
+
+if type(SavedData) == "table" then
+
+    if type(SavedData.Config) == "table" then
+
+        for Key, Value in pairs(
+            SavedData.Config
+        ) do
+
+            if
+                DefaultConfig[Key] ~= nil
+                and type(Value) == "number"
+            then
+
+                Config[Key] =
+                    Value
+            end
+        end
+    end
+end
+
+
+local Running = false
+
+
+if type(SavedData) == "table"
+    and type(SavedData.Running) == "boolean" then
+
+    Running =
+        SavedData.Running
+end
+
 
 local SelectedPets = {}
 
 
-local function LoadConfig()
+if type(SavedData) == "table"
+    and type(SavedData.SelectedPets) == "table" then
 
-    if not isfile then
-        return
-    end
+    for _, Name in ipairs(
+        SavedData.SelectedPets
+    ) do
 
-    if not isfile(CONFIG_FILE) then
-        return
-    end
+        if type(Name) == "string" then
 
-    local Success, Data = pcall(function()
-
-        return HttpService:JSONDecode(
-            readfile(CONFIG_FILE)
-        )
-
-    end)
-
-
-    if not Success or type(Data) ~= "table" then
-        return
-    end
-
-
-    -- CONFIG
-    if type(Data.Config) == "table" then
-
-        for Key, DefaultValue in pairs(Config) do
-
-            if Data.Config[Key] ~= nil
-                and type(Data.Config[Key]) == type(DefaultValue) then
-
-                Config[Key] =
-                    Data.Config[Key]
-            end
-        end
-    end
-
-
-    -- SELECTED PET
-    if type(Data.SelectedPets) == "table" then
-
-        SelectedPets = {}
-
-        for _, PetName in ipairs(Data.SelectedPets) do
-
-            if type(PetName) == "string" then
-
-                table.insert(
-                    SelectedPets,
-                    PetName
-                )
-            end
+            table.insert(
+                SelectedPets,
+                Name
+            )
         end
     end
 end
+
+
+--==================================================
+-- SAVE FUNCTION
+--==================================================
+
+local SaveBusy = false
 
 
 local function SaveConfig()
 
-    if not writefile then
+    if SaveBusy then
         return
     end
 
 
-    local Data = {
-
-        Config = Config,
-
-        SelectedPets = SelectedPets
-    }
+    SaveBusy = true
 
 
-    local Success, Result = pcall(function()
+    task.defer(function()
 
-        return HttpService:JSONEncode(Data)
+        pcall(function()
 
-    end)
+            if writefile then
+
+                local Data = {
+
+                    Config = Config,
+
+                    Running = Running,
+
+                    SelectedPets =
+                        SelectedPets
+                }
 
 
-    if not Success then
-
-        warn(
-            "[AUTO HATCH] SAVE JSON ERROR:",
-            Result
-        )
-
-        return
-    end
+                writefile(
+                    SAVE_FILE,
+                    HttpService:JSONEncode(Data)
+                )
+            end
+        end)
 
 
-    pcall(function()
-
-        writefile(
-            CONFIG_FILE,
-            Result
-        )
-
+        SaveBusy = false
     end)
 end
 
 
-LoadConfig()
-
-
 --==================================================
--- RUNNING
+-- PETLIST
 --==================================================
 
-local Running = false
-local MainLoopStarted = false
+local function GetPetRegistryList()
+
+    local Result = {}
 
 
---==================================================
--- PETLIST FROM REPLICATEDSTORAGE
---==================================================
-
-local PetList = {}
-
-
-local function LoadPetList()
-
-    table.clear(PetList)
-
-
-    local DataFolder =
+    local Data =
         RS:FindFirstChild("Data")
 
-    if not DataFolder then
-        return
+    if not Data then
+        return Result
     end
 
 
     local PetRegistry =
-        DataFolder:FindFirstChild("PetRegistry")
+        Data:FindFirstChild("PetRegistry")
 
     if not PetRegistry then
-        return
+        return Result
     end
 
 
-    local PetListModule =
+    local PetList =
         PetRegistry:FindFirstChild("PetList")
 
-    if not PetListModule then
-        return
+    if not PetList then
+        return Result
     end
 
 
-    local Success, Data =
-        pcall(function()
+    if PetList:IsA("ModuleScript") then
 
-            if PetListModule:IsA("ModuleScript") then
-
-                return require(PetListModule)
-
-            end
-
-            return nil
-        end)
+        local Success, Module =
+            pcall(require, PetList)
 
 
-    if not Success or type(Data) ~= "table" then
+        if Success
+            and type(Module) == "table" then
 
-        warn(
-            "[AUTO HATCH] GAGAL LOAD PetList"
-        )
+            for Name, Value in pairs(Module) do
 
-        return
-    end
+                if type(Name) == "string" then
 
+                    table.insert(
+                        Result,
+                        Name
+                    )
 
-    for Key, Value in pairs(Data) do
+                elseif type(Value) == "string" then
 
-        local PetName
-
-
-        --==========================================
-        -- FORMAT:
-        -- ["Pet Name"] = {...}
-        --==========================================
-
-        if type(Key) == "string" then
-
-            PetName = Key
-
-        elseif type(Value) == "table" then
-
-            if type(Value.Name) == "string" then
-
-                PetName = Value.Name
-
-            elseif type(Value.PetName) == "string" then
-
-                PetName = Value.PetName
+                    table.insert(
+                        Result,
+                        Value
+                    )
+                end
             end
         end
 
+    else
 
-        if PetName
-            and PetName ~= "" then
+        for _, Object in ipairs(
+            PetList:GetChildren()
+        ) do
 
             table.insert(
-                PetList,
-                PetName
+                Result,
+                Object.Name
             )
         end
     end
 
 
     table.sort(
-        PetList,
+        Result,
         function(A, B)
 
             return string.lower(A)
@@ -296,14 +331,12 @@ local function LoadPetList()
     )
 
 
-    print(
-        "[AUTO HATCH] PetList Loaded:",
-        #PetList
-    )
+    return Result
 end
 
 
-LoadPetList()
+local PetList =
+    GetPetRegistryList()
 
 
 --==================================================
@@ -311,7 +344,10 @@ LoadPetList()
 --==================================================
 
 local OldGui =
-    PG:FindFirstChild("AutoHatchLog")
+    PG:FindFirstChild(
+        "AutoHatchLog"
+    )
+
 
 if OldGui then
     OldGui:Destroy()
@@ -325,14 +361,18 @@ end
 local ScreenGui =
     Instance.new("ScreenGui")
 
+
 ScreenGui.Name =
     "AutoHatchLog"
+
 
 ScreenGui.ResetOnSpawn =
     false
 
+
 ScreenGui.ZIndexBehavior =
     Enum.ZIndexBehavior.Sibling
+
 
 ScreenGui.Parent =
     PG
@@ -345,13 +385,15 @@ ScreenGui.Parent =
 local Main =
     Instance.new("Frame")
 
+
 Main.Size =
     UDim2.new(
         0,
-        400,
+        340,
         0,
-        470
+        430
     )
+
 
 Main.Position =
     UDim2.new(
@@ -361,6 +403,7 @@ Main.Position =
         80
     )
 
+
 Main.BackgroundColor3 =
     Color3.fromRGB(
         20,
@@ -368,11 +411,10 @@ Main.BackgroundColor3 =
         20
     )
 
+
 Main.BorderSizePixel =
     0
 
-Main.Active =
-    true
 
 Main.Parent =
     ScreenGui
@@ -381,11 +423,13 @@ Main.Parent =
 local MainCorner =
     Instance.new("UICorner")
 
+
 MainCorner.CornerRadius =
     UDim.new(
         0,
-        8
+        7
     )
+
 
 MainCorner.Parent =
     Main
@@ -398,13 +442,15 @@ MainCorner.Parent =
 local Header =
     Instance.new("Frame")
 
+
 Header.Size =
     UDim2.new(
         1,
         0,
         0,
-        34
+        30
     )
+
 
 Header.BackgroundColor3 =
     Color3.fromRGB(
@@ -413,11 +459,10 @@ Header.BackgroundColor3 =
         30
     )
 
+
 Header.BorderSizePixel =
     0
 
-Header.Active =
-    true
 
 Header.Parent =
     Main
@@ -426,40 +471,51 @@ Header.Parent =
 local HeaderCorner =
     Instance.new("UICorner")
 
+
 HeaderCorner.CornerRadius =
     UDim.new(
         0,
-        8
+        7
     )
+
 
 HeaderCorner.Parent =
     Header
 
 
+--==================================================
+-- TITLE
+--==================================================
+
 local Title =
     Instance.new("TextLabel")
 
+
 Title.Size =
     UDim2.new(
-        1,
-        -120,
+        0,
+        135,
         1,
         0
     )
+
 
 Title.Position =
     UDim2.new(
         0,
-        10,
+        8,
         0,
         0
     )
 
+
 Title.BackgroundTransparency =
     1
 
+
 Title.Text =
-    "AUTO HATCH SPRINGTIDE"
+    "AUTO HATCH"
+
 
 Title.TextColor3 =
     Color3.fromRGB(
@@ -468,41 +524,106 @@ Title.TextColor3 =
         255
     )
 
+
 Title.TextSize =
-    13
+    11
+
 
 Title.Font =
     Enum.Font.GothamBold
 
+
 Title.TextXAlignment =
     Enum.TextXAlignment.Left
+
 
 Title.Parent =
     Header
 
 
 --==================================================
--- ON / OFF
+-- STATE HEADER
+--==================================================
+
+local StateLabel =
+    Instance.new("TextLabel")
+
+
+StateLabel.Size =
+    UDim2.new(
+        0,
+        105,
+        1,
+        0
+    )
+
+
+StateLabel.Position =
+    UDim2.new(
+        0,
+        135,
+        0,
+        0
+    )
+
+
+StateLabel.BackgroundTransparency =
+    1
+
+
+StateLabel.Text =
+    "IDLE"
+
+
+StateLabel.TextColor3 =
+    Color3.fromRGB(
+        180,
+        180,
+        180
+    )
+
+
+StateLabel.TextSize =
+    9
+
+
+StateLabel.Font =
+    Enum.Font.GothamBold
+
+
+StateLabel.TextXAlignment =
+    Enum.TextXAlignment.Center
+
+
+StateLabel.Parent =
+    Header
+
+
+--==================================================
+-- TOGGLE
 --==================================================
 
 local Toggle =
     Instance.new("TextButton")
 
+
 Toggle.Size =
     UDim2.new(
         0,
-        75,
+        50,
         0,
-        24
+        21
     )
+
 
 Toggle.Position =
     UDim2.new(
         1,
-        -85,
+        -82,
         0,
-        5
+        4
     )
+
 
 Toggle.BackgroundColor3 =
     Color3.fromRGB(
@@ -511,8 +632,13 @@ Toggle.BackgroundColor3 =
         40
     )
 
+
 Toggle.Text =
+    Running and
+    "ON"
+    or
     "OFF"
+
 
 Toggle.TextColor3 =
     Color3.fromRGB(
@@ -521,14 +647,18 @@ Toggle.TextColor3 =
         255
     )
 
+
 Toggle.TextSize =
-    11
+    9
+
 
 Toggle.Font =
     Enum.Font.GothamBold
 
+
 Toggle.BorderSizePixel =
     0
+
 
 Toggle.Parent =
     Header
@@ -537,14 +667,93 @@ Toggle.Parent =
 local ToggleCorner =
     Instance.new("UICorner")
 
+
 ToggleCorner.CornerRadius =
     UDim.new(
         0,
-        5
+        4
     )
+
 
 ToggleCorner.Parent =
     Toggle
+
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+local Minimize =
+    Instance.new("TextButton")
+
+
+Minimize.Size =
+    UDim2.new(
+        0,
+        24,
+        0,
+        21
+    )
+
+
+Minimize.Position =
+    UDim2.new(
+        1,
+        -28,
+        0,
+        4
+    )
+
+
+Minimize.BackgroundColor3 =
+    Color3.fromRGB(
+        55,
+        55,
+        55
+    )
+
+
+Minimize.Text =
+    "−"
+
+
+Minimize.TextColor3 =
+    Color3.fromRGB(
+        255,
+        255,
+        255
+    )
+
+
+Minimize.TextSize =
+    14
+
+
+Minimize.Font =
+    Enum.Font.GothamBold
+
+
+Minimize.BorderSizePixel =
+    0
+
+
+Minimize.Parent =
+    Header
+
+
+local MinCorner =
+    Instance.new("UICorner")
+
+
+MinCorner.CornerRadius =
+    UDim.new(
+        0,
+        4
+    )
+
+
+MinCorner.Parent =
+    Minimize
 
 
 --==================================================
@@ -554,21 +763,24 @@ ToggleCorner.Parent =
 local ConfigFrame =
     Instance.new("Frame")
 
+
 ConfigFrame.Size =
     UDim2.new(
         1,
         -10,
         0,
-        130
+        115
     )
+
 
 ConfigFrame.Position =
     UDim2.new(
         0,
         5,
         0,
-        39
+        35
     )
+
 
 ConfigFrame.BackgroundColor3 =
     Color3.fromRGB(
@@ -577,8 +789,10 @@ ConfigFrame.BackgroundColor3 =
         25
     )
 
+
 ConfigFrame.BorderSizePixel =
     0
+
 
 ConfigFrame.Parent =
     Main
@@ -587,148 +801,93 @@ ConfigFrame.Parent =
 local ConfigCorner =
     Instance.new("UICorner")
 
+
 ConfigCorner.CornerRadius =
     UDim.new(
         0,
         5
     )
 
+
 ConfigCorner.Parent =
     ConfigFrame
 
 
 --==================================================
--- 4 COLUMN GRID
+-- FOUR COLUMNS
 --==================================================
 
-local ConfigLayout =
-    Instance.new("UIGridLayout")
+local Columns = {}
 
-ConfigLayout.CellSize =
-    UDim2.new(
-        0,
-        91,
-        0,
-        25
-    )
 
-ConfigLayout.CellPadding =
-    UDim2.new(
-        0,
-        5,
-        0,
-        5
-    )
+for i = 1, 4 do
 
-ConfigLayout.FillDirection =
-    Enum.FillDirection.Horizontal
+    local Column =
+        Instance.new("Frame")
 
-ConfigLayout.FillDirectionMaxCells =
-    4
 
-ConfigLayout.SortOrder =
-    Enum.SortOrder.LayoutOrder
+    Column.Size =
+        UDim2.new(
+            0.25,
+            -4,
+            1,
+            -6
+        )
 
-ConfigLayout.Parent =
-    ConfigFrame
+
+    Column.Position =
+        UDim2.new(
+            (i - 1) * 0.25,
+            0,
+            0,
+            3
+        )
+
+
+    Column.BackgroundTransparency =
+        1
+
+
+    Column.Parent =
+        ConfigFrame
+
+
+    Columns[i] =
+        Column
+end
 
 
 local ConfigBoxes = {}
 
 
---==================================================
--- CONFIG ORDER
---==================================================
-
-local ConfigOrder = {
-
-    -- COLUMN 1
-    {
-        "LOOP_DELAY",
-        "Loop Delay"
-    },
-
-    {
-        "EQUIP_DELAY",
-        "Equip Pet Delay"
-    },
-
-    {
-        "AFTER_EQUIP_WAIT",
-        "Equip Pet Wait"
-    },
-
-
-    -- COLUMN 2
-    {
-        "TARGET_LIMIT",
-        "Target Sell If Trash"
-    },
-
-    {
-        "MAX_EGG",
-        "Max Egg"
-    },
-
-    {
-        "SELL_KG_LIMIT",
-        "Sell KG"
-    },
-
-
-    -- COLUMN 3
-    {
-        "BALD_TARGET",
-        "Bald"
-    },
-
-    {
-        "MIMIC_TARGET",
-        "Mimic"
-    },
-
-    {
-        "PLACE_BATCH",
-        "Place Egg"
-    },
-
-
-    -- COLUMN 4
-    {
-        "BRONTO_TARGET",
-        "Bronto"
-    },
-
-    {
-        "KOI_TARGET",
-        "Koi"
-    },
-
-    {
-        "SEAL_TARGET",
-        "Seal"
-    }
-}
-
-
---==================================================
--- LOG DECLARATION
---==================================================
-
-local Log
-
-
---==================================================
--- CREATE CONFIG BOX
---==================================================
-
 local function CreateConfigBox(
+    Parent,
     Key,
-    DisplayName
+    DisplayName,
+    Order
 )
 
     local Frame =
         Instance.new("Frame")
+
+
+    Frame.Size =
+        UDim2.new(
+            1,
+            -3,
+            0,
+            31
+        )
+
+
+    Frame.Position =
+        UDim2.new(
+            0,
+            1,
+            0,
+            (Order - 1) * 34
+        )
+
 
     Frame.BackgroundColor3 =
         Color3.fromRGB(
@@ -737,21 +896,25 @@ local function CreateConfigBox(
             35
         )
 
+
     Frame.BorderSizePixel =
         0
 
+
     Frame.Parent =
-        ConfigFrame
+        Parent
 
 
     local Corner =
         Instance.new("UICorner")
+
 
     Corner.CornerRadius =
         UDim.new(
             0,
             4
         )
+
 
     Corner.Parent =
         Frame
@@ -760,43 +923,52 @@ local function CreateConfigBox(
     local Label =
         Instance.new("TextLabel")
 
+
     Label.Size =
         UDim2.new(
-            0.55,
-            0,
             1,
-            0
+            -6,
+            0,
+            13
         )
+
 
     Label.Position =
         UDim2.new(
             0,
-            4,
+            3,
             0,
-            0
+            2
         )
+
 
     Label.BackgroundTransparency =
         1
 
+
     Label.Text =
         DisplayName
 
+
     Label.TextColor3 =
         Color3.fromRGB(
-            200,
-            200,
-            200
+            175,
+            175,
+            175
         )
+
 
     Label.TextSize =
         8
 
+
     Label.Font =
         Enum.Font.Gotham
 
+
     Label.TextXAlignment =
         Enum.TextXAlignment.Left
+
 
     Label.Parent =
         Frame
@@ -805,21 +977,24 @@ local function CreateConfigBox(
     local Box =
         Instance.new("TextBox")
 
+
     Box.Size =
         UDim2.new(
-            0.38,
+            1,
+            -6,
             0,
-            0,
-            19
+            14
         )
+
 
     Box.Position =
         UDim2.new(
-            0.58,
             0,
-            0.5,
-            -9
+            3,
+            0,
+            15
         )
+
 
     Box.BackgroundColor3 =
         Color3.fromRGB(
@@ -828,6 +1003,7 @@ local function CreateConfigBox(
             15
         )
 
+
     Box.TextColor3 =
         Color3.fromRGB(
             255,
@@ -835,22 +1011,28 @@ local function CreateConfigBox(
             255
         )
 
+
     Box.Text =
         tostring(
             Config[Key]
         )
 
+
     Box.TextSize =
-        9
+        8
+
 
     Box.Font =
         Enum.Font.GothamBold
 
+
     Box.ClearTextOnFocus =
         false
 
+
     Box.BorderSizePixel =
         0
+
 
     Box.Parent =
         Frame
@@ -859,11 +1041,13 @@ local function CreateConfigBox(
     local BoxCorner =
         Instance.new("UICorner")
 
+
     BoxCorner.CornerRadius =
         UDim.new(
             0,
             3
         )
+
 
     BoxCorner.Parent =
         Box
@@ -873,67 +1057,156 @@ local function CreateConfigBox(
         Box
 
 
-    Box.FocusLost:Connect(
-        function()
+    Box.FocusLost:Connect(function()
 
-            local Number =
-                tonumber(
-                    Box.Text
-                )
-
-
-            if Number == nil then
-
-                Box.Text =
-                    tostring(
-                        Config[Key]
-                    )
-
-                return
-            end
+        local Number =
+            tonumber(
+                Box.Text
+            )
 
 
-            Config[Key] =
-                Number
-
+        if Number == nil then
 
             Box.Text =
                 tostring(
-                    Number
+                    Config[Key]
                 )
 
-
-            SaveConfig()
-
-
-            if Log then
-
-                Log(
-                    "⚙ CONFIG:",
-                    Key,
-                    "=",
-                    Number
-                )
-
-            end
+            return
         end
-    )
+
+
+        if Number < 0 then
+            Number = 0
+        end
+
+
+        Config[Key] =
+            Number
+
+
+        Box.Text =
+            tostring(
+                Number
+            )
+
+
+        SaveConfig()
+
+    end)
 end
 
 
 --==================================================
--- CREATE ALL CONFIG
+-- COLUMN 1
 --==================================================
 
-for _, Data in ipairs(
-    ConfigOrder
-) do
+CreateConfigBox(
+    Columns[1],
+    "LOOP_DELAY",
+    "Loop Delay",
+    1
+)
 
-    CreateConfigBox(
-        Data[1],
-        Data[2]
-    )
-end
+
+CreateConfigBox(
+    Columns[1],
+    "EQUIP_DELAY",
+    "Equip Pet Delay",
+    2
+)
+
+
+CreateConfigBox(
+    Columns[1],
+    "AFTER_EQUIP_WAIT",
+    "Equip Pet Wait",
+    3
+)
+
+
+--==================================================
+-- COLUMN 2
+--==================================================
+
+CreateConfigBox(
+    Columns[2],
+    "TARGET_LIMIT",
+    "Target Sell If Trash",
+    1
+)
+
+
+CreateConfigBox(
+    Columns[2],
+    "MAX_EGG",
+    "Max Egg",
+    2
+)
+
+
+CreateConfigBox(
+    Columns[2],
+    "SELL_KG_LIMIT",
+    "Sell KG",
+    3
+)
+
+
+--==================================================
+-- COLUMN 3
+--==================================================
+
+CreateConfigBox(
+    Columns[3],
+    "BALD_TARGET",
+    "Bald Target",
+    1
+)
+
+
+CreateConfigBox(
+    Columns[3],
+    "MIMIC_TARGET",
+    "Mimic Target",
+    2
+)
+
+
+CreateConfigBox(
+    Columns[3],
+    "PLACE_BATCH",
+    "Place Egg",
+    3
+)
+
+
+--==================================================
+-- COLUMN 4
+--==================================================
+
+CreateConfigBox(
+    Columns[4],
+    "BRONTO_TARGET",
+    "Bronto Target",
+    1
+)
+
+
+CreateConfigBox(
+    Columns[4],
+    "KOI_TARGET",
+    "Koi Target",
+    2
+)
+
+
+CreateConfigBox(
+    Columns[4],
+    "SEAL_TARGET",
+    "Seal Target",
+    3
+)
 
 
 --==================================================
@@ -943,21 +1216,24 @@ end
 local PetSelector =
     Instance.new("Frame")
 
+
 PetSelector.Size =
     UDim2.new(
         1,
         -10,
         0,
-        105
+        65
     )
+
 
 PetSelector.Position =
     UDim2.new(
         0,
         5,
         0,
-        174
+        155
     )
+
 
 PetSelector.BackgroundColor3 =
     Color3.fromRGB(
@@ -966,8 +1242,10 @@ PetSelector.BackgroundColor3 =
         25
     )
 
+
 PetSelector.BorderSizePixel =
     0
+
 
 PetSelector.Parent =
     Main
@@ -976,11 +1254,13 @@ PetSelector.Parent =
 local PetSelectorCorner =
     Instance.new("UICorner")
 
+
 PetSelectorCorner.CornerRadius =
     UDim.new(
         0,
         5
     )
+
 
 PetSelectorCorner.Parent =
     PetSelector
@@ -993,13 +1273,15 @@ PetSelectorCorner.Parent =
 local SearchBox =
     Instance.new("TextBox")
 
+
 SearchBox.Size =
     UDim2.new(
         1,
-        -85,
+        -80,
         0,
-        28
+        25
     )
+
 
 SearchBox.Position =
     UDim2.new(
@@ -1009,6 +1291,7 @@ SearchBox.Position =
         5
     )
 
+
 SearchBox.BackgroundColor3 =
     Color3.fromRGB(
         40,
@@ -1016,18 +1299,14 @@ SearchBox.BackgroundColor3 =
         40
     )
 
+
 SearchBox.Text =
-    ""
+    "SELECT PET / SEARCH"
+
 
 SearchBox.PlaceholderText =
-    "SELECT PET / SEARCH..."
+    "Search pet..."
 
-SearchBox.PlaceholderColor3 =
-    Color3.fromRGB(
-        150,
-        150,
-        150
-    )
 
 SearchBox.TextColor3 =
     Color3.fromRGB(
@@ -1036,40 +1315,38 @@ SearchBox.TextColor3 =
         255
     )
 
+
+SearchBox.PlaceholderColor3 =
+    Color3.fromRGB(
+        130,
+        130,
+        130
+    )
+
+
 SearchBox.TextSize =
-    10
+    9
+
 
 SearchBox.Font =
     Enum.Font.GothamBold
 
-SearchBox.TextXAlignment =
-    Enum.TextXAlignment.Left
 
 SearchBox.ClearTextOnFocus =
-    false
+    true
+
 
 SearchBox.BorderSizePixel =
     0
+
 
 SearchBox.Parent =
     PetSelector
 
 
-local SearchPadding =
-    Instance.new("UIPadding")
-
-SearchPadding.PaddingLeft =
-    UDim.new(
-        0,
-        8
-    )
-
-SearchPadding.Parent =
-    SearchBox
-
-
 local SearchCorner =
     Instance.new("UICorner")
+
 
 SearchCorner.CornerRadius =
     UDim.new(
@@ -1077,32 +1354,36 @@ SearchCorner.CornerRadius =
         4
     )
 
+
 SearchCorner.Parent =
     SearchBox
 
 
 --==================================================
--- ADD BUTTON
+-- ADD
 --==================================================
 
 local AddButton =
     Instance.new("TextButton")
 
+
 AddButton.Size =
     UDim2.new(
         0,
-        70,
+        65,
         0,
-        28
+        25
     )
+
 
 AddButton.Position =
     UDim2.new(
         1,
-        -75,
+        -70,
         0,
         5
     )
+
 
 AddButton.BackgroundColor3 =
     Color3.fromRGB(
@@ -1111,8 +1392,10 @@ AddButton.BackgroundColor3 =
         60
     )
 
+
 AddButton.Text =
     "ADD"
+
 
 AddButton.TextColor3 =
     Color3.fromRGB(
@@ -1121,14 +1404,18 @@ AddButton.TextColor3 =
         255
     )
 
+
 AddButton.TextSize =
-    10
+    9
+
 
 AddButton.Font =
     Enum.Font.GothamBold
 
+
 AddButton.BorderSizePixel =
     0
+
 
 AddButton.Parent =
     PetSelector
@@ -1137,57 +1424,67 @@ AddButton.Parent =
 local AddCorner =
     Instance.new("UICorner")
 
+
 AddCorner.CornerRadius =
     UDim.new(
         0,
         4
     )
 
+
 AddCorner.Parent =
     AddButton
 
 
 --==================================================
--- DROPDOWN LIST
+-- DROPDOWN RESULT
 --==================================================
 
 local DropdownList =
     Instance.new("ScrollingFrame")
 
+
 DropdownList.Size =
     UDim2.new(
         1,
-        -85,
+        -80,
         0,
-        120
+        100
     )
+
 
 DropdownList.Position =
     UDim2.new(
         0,
         5,
         0,
-        34
+        32
     )
+
 
 DropdownList.BackgroundColor3 =
     Color3.fromRGB(
-        15,
-        15,
-        15
+        12,
+        12,
+        12
     )
+
 
 DropdownList.BorderSizePixel =
     0
 
+
 DropdownList.ScrollBarThickness =
     3
+
 
 DropdownList.Visible =
     false
 
+
 DropdownList.ZIndex =
-    20
+    50
+
 
 DropdownList.CanvasSize =
     UDim2.new(
@@ -1197,6 +1494,7 @@ DropdownList.CanvasSize =
         0
     )
 
+
 DropdownList.Parent =
     PetSelector
 
@@ -1204,14 +1502,13 @@ DropdownList.Parent =
 local DropdownLayout =
     Instance.new("UIListLayout")
 
+
 DropdownLayout.Padding =
     UDim.new(
         0,
         2
     )
 
-DropdownLayout.SortOrder =
-    Enum.SortOrder.LayoutOrder
 
 DropdownLayout.Parent =
     DropdownList
@@ -1224,27 +1521,32 @@ DropdownLayout.Parent =
 local SelectedTitle =
     Instance.new("TextLabel")
 
+
 SelectedTitle.Size =
     UDim2.new(
         1,
         -10,
         0,
-        18
+        15
     )
+
 
 SelectedTitle.Position =
     UDim2.new(
         0,
         5,
         0,
-        65
+        225
     )
+
 
 SelectedTitle.BackgroundTransparency =
     1
 
+
 SelectedTitle.Text =
     "COUNT + SELL PET"
+
 
 SelectedTitle.TextColor3 =
     Color3.fromRGB(
@@ -1253,41 +1555,106 @@ SelectedTitle.TextColor3 =
         180
     )
 
+
 SelectedTitle.TextSize =
-    9
+    8
+
 
 SelectedTitle.Font =
     Enum.Font.GothamBold
 
+
 SelectedTitle.TextXAlignment =
     Enum.TextXAlignment.Left
 
+
 SelectedTitle.Parent =
-    PetSelector
+    Main
 
 
 --==================================================
--- SELECTED LIST
+-- TARGET COUNT
+--==================================================
+
+local TargetCountLabel =
+    Instance.new("TextLabel")
+
+
+TargetCountLabel.Size =
+    UDim2.new(
+        0,
+        120,
+        0,
+        15
+    )
+
+
+TargetCountLabel.Position =
+    UDim2.new(
+        1,
+        -125,
+        0,
+        225
+    )
+
+
+TargetCountLabel.BackgroundTransparency =
+    1
+
+
+TargetCountLabel.Text =
+    "TARGET: 0"
+
+
+TargetCountLabel.TextColor3 =
+    Color3.fromRGB(
+        120,
+        200,
+        140
+    )
+
+
+TargetCountLabel.TextSize =
+    8
+
+
+TargetCountLabel.Font =
+    Enum.Font.GothamBold
+
+
+TargetCountLabel.TextXAlignment =
+    Enum.TextXAlignment.Right
+
+
+TargetCountLabel.Parent =
+    Main
+
+
+--==================================================
+-- SELECTED FRAME
 --==================================================
 
 local SelectedFrame =
     Instance.new("ScrollingFrame")
+
 
 SelectedFrame.Size =
     UDim2.new(
         1,
         -10,
         0,
-        125
+        75
     )
+
 
 SelectedFrame.Position =
     UDim2.new(
         0,
         5,
         0,
-        285
+        242
     )
+
 
 SelectedFrame.BackgroundColor3 =
     Color3.fromRGB(
@@ -1296,11 +1663,14 @@ SelectedFrame.BackgroundColor3 =
         12
     )
 
+
 SelectedFrame.BorderSizePixel =
     0
 
+
 SelectedFrame.ScrollBarThickness =
     3
+
 
 SelectedFrame.CanvasSize =
     UDim2.new(
@@ -1310,6 +1680,7 @@ SelectedFrame.CanvasSize =
         0
     )
 
+
 SelectedFrame.Parent =
     Main
 
@@ -1317,11 +1688,13 @@ SelectedFrame.Parent =
 local SelectedCorner =
     Instance.new("UICorner")
 
+
 SelectedCorner.CornerRadius =
     UDim.new(
         0,
         5
     )
+
 
 SelectedCorner.Parent =
     SelectedFrame
@@ -1330,14 +1703,13 @@ SelectedCorner.Parent =
 local SelectedLayout =
     Instance.new("UIListLayout")
 
+
 SelectedLayout.Padding =
     UDim.new(
         0,
         2
     )
 
-SelectedLayout.SortOrder =
-    Enum.SortOrder.LayoutOrder
 
 SelectedLayout.Parent =
     SelectedFrame
@@ -1350,21 +1722,24 @@ SelectedLayout.Parent =
 local LogFrame =
     Instance.new("Frame")
 
+
 LogFrame.Size =
     UDim2.new(
         1,
         -10,
         0,
-        120
+        105
     )
+
 
 LogFrame.Position =
     UDim2.new(
         0,
         5,
         0,
-        415
+        320
     )
+
 
 LogFrame.BackgroundColor3 =
     Color3.fromRGB(
@@ -1373,8 +1748,10 @@ LogFrame.BackgroundColor3 =
         12
     )
 
+
 LogFrame.BorderSizePixel =
     0
+
 
 LogFrame.Parent =
     Main
@@ -1383,11 +1760,13 @@ LogFrame.Parent =
 local LogCorner =
     Instance.new("UICorner")
 
+
 LogCorner.CornerRadius =
     UDim.new(
         0,
         5
     )
+
 
 LogCorner.Parent =
     LogFrame
@@ -1395,6 +1774,7 @@ LogCorner.Parent =
 
 local Scroll =
     Instance.new("ScrollingFrame")
+
 
 Scroll.Size =
     UDim2.new(
@@ -1404,6 +1784,7 @@ Scroll.Size =
         -8
     )
 
+
 Scroll.Position =
     UDim2.new(
         0,
@@ -1412,14 +1793,18 @@ Scroll.Position =
         4
     )
 
+
 Scroll.BackgroundTransparency =
     1
+
 
 Scroll.BorderSizePixel =
     0
 
+
 Scroll.ScrollBarThickness =
     3
+
 
 Scroll.CanvasSize =
     UDim2.new(
@@ -1429,6 +1814,7 @@ Scroll.CanvasSize =
         0
     )
 
+
 Scroll.Parent =
     LogFrame
 
@@ -1436,28 +1822,45 @@ Scroll.Parent =
 local Layout =
     Instance.new("UIListLayout")
 
+
 Layout.Padding =
     UDim.new(
         0,
         1
     )
 
-Layout.SortOrder =
-    Enum.SortOrder.LayoutOrder
 
 Layout.Parent =
     Scroll
 
 
 --==================================================
--- LOG
+-- LOG OPTIMIZATION
 --==================================================
 
-Log = function(...)
+local MAX_LOGS =
+    40
 
-    local Args = {...}
 
-    local Message = ""
+local LogObjects = {}
+
+
+local LastLog =
+    ""
+
+
+local LastLogTime =
+    0
+
+
+local function Log(...)
+
+    local Args =
+        {...}
+
+
+    local Message =
+        ""
 
 
     for i, Value in ipairs(
@@ -1465,17 +1868,41 @@ Log = function(...)
     ) do
 
         if i > 1 then
+
             Message =
                 Message .. " "
+
         end
 
+
         Message =
-            Message ..
-            tostring(Value)
+            Message .. tostring(Value)
+
     end
 
 
+    local Now =
+        os.clock()
+
+
+    -- Prevent identical spam
+    if Message == LastLog
+        and Now - LastLogTime < 1 then
+
+        return
+    end
+
+
+    LastLog =
+        Message
+
+
+    LastLogTime =
+        Now
+
+
     print(
+        "[AUTOHATCH]",
         Message
     )
 
@@ -1483,19 +1910,23 @@ Log = function(...)
     local Label =
         Instance.new("TextLabel")
 
+
     Label.Size =
         UDim2.new(
             1,
             -5,
             0,
-            15
+            14
         )
+
 
     Label.BackgroundTransparency =
         1
 
+
     Label.Text =
         Message
+
 
     Label.TextColor3 =
         Color3.fromRGB(
@@ -1504,26 +1935,43 @@ Log = function(...)
             205
         )
 
+
     Label.TextSize =
-        9
+        8
+
 
     Label.Font =
         Enum.Font.Code
 
+
     Label.TextXAlignment =
         Enum.TextXAlignment.Left
 
-    Label.TextYAlignment =
-        Enum.TextYAlignment.Top
-
-    Label.TextWrapped =
-        true
-
-    Label.AutomaticSize =
-        Enum.AutomaticSize.Y
 
     Label.Parent =
         Scroll
+
+
+    table.insert(
+        LogObjects,
+        Label
+    )
+
+
+    while #LogObjects > MAX_LOGS do
+
+        local Old =
+            table.remove(
+                LogObjects,
+                1
+            )
+
+
+        if Old then
+            Old:Destroy()
+        end
+
+    end
 
 
     task.defer(function()
@@ -1533,7 +1981,8 @@ Log = function(...)
                 0,
                 0,
                 0,
-                Layout.AbsoluteContentSize.Y + 5
+                Layout.AbsoluteContentSize.Y
+                + 5
             )
 
 
@@ -1546,17 +1995,286 @@ Log = function(...)
                     - Scroll.AbsoluteSize.Y
                 )
             )
+
     end)
+
 end
 
 
 --==================================================
--- IS SELECTED
+-- STATE
 --==================================================
 
-local function IsSelected(
-    PetName
-)
+local CurrentState =
+    "IDLE"
+
+
+local function SetState(State)
+
+    if CurrentState == State then
+        return
+    end
+
+
+    CurrentState =
+        State
+
+
+    StateLabel.Text =
+        State
+
+
+    Log(
+        "STATE →",
+        State
+    )
+
+end
+
+
+--==================================================
+-- UPDATE TOGGLE
+--==================================================
+
+local function UpdateToggle()
+
+    if Running then
+
+        Toggle.Text =
+            "ON"
+
+
+        Toggle.BackgroundColor3 =
+            Color3.fromRGB(
+                40,
+                130,
+                60
+            )
+
+    else
+
+        Toggle.Text =
+            "OFF"
+
+
+        Toggle.BackgroundColor3 =
+            Color3.fromRGB(
+                100,
+                40,
+                40
+            )
+
+    end
+
+
+    SaveConfig()
+
+end
+
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+local Minimized =
+    false
+
+
+local NormalSize =
+    UDim2.new(
+        0,
+        340,
+        0,
+        430
+    )
+
+
+local MiniSize =
+    UDim2.new(
+        0,
+        250,
+        0,
+        30
+    )
+
+
+Minimize.MouseButton1Click:Connect(function()
+
+    Minimized =
+        not Minimized
+
+
+    if Minimized then
+
+        Main.Size =
+            MiniSize
+
+
+        ConfigFrame.Visible =
+            false
+
+
+        PetSelector.Visible =
+            false
+
+
+        SelectedTitle.Visible =
+            false
+
+
+        TargetCountLabel.Visible =
+            false
+
+
+        SelectedFrame.Visible =
+            false
+
+
+        LogFrame.Visible =
+            false
+
+
+        Minimize.Text =
+            "+"
+
+
+    else
+
+        Main.Size =
+            NormalSize
+
+
+        ConfigFrame.Visible =
+            true
+
+
+        PetSelector.Visible =
+            true
+
+
+        SelectedTitle.Visible =
+            true
+
+
+        TargetCountLabel.Visible =
+            true
+
+
+        SelectedFrame.Visible =
+            true
+
+
+        LogFrame.Visible =
+            true
+
+
+        Minimize.Text =
+            "−"
+
+    end
+
+end)
+
+
+--==================================================
+-- DRAG
+--==================================================
+
+local Dragging =
+    false
+
+
+local DragStart =
+    nil
+
+
+local StartPos =
+    nil
+
+
+Header.InputBegan:Connect(function(Input)
+
+    if Input.UserInputType ==
+        Enum.UserInputType.MouseButton1 then
+
+        Dragging =
+            true
+
+
+        DragStart =
+            Input.Position
+
+
+        StartPos =
+            Main.Position
+
+    end
+
+end)
+
+
+Header.InputEnded:Connect(function(Input)
+
+    if Input.UserInputType ==
+        Enum.UserInputType.MouseButton1 then
+
+        Dragging =
+            false
+
+    end
+
+end)
+
+
+UIS.InputChanged:Connect(function(Input)
+
+    if not Dragging then
+        return
+    end
+
+
+    if Input.UserInputType ~=
+        Enum.UserInputType.MouseMovement then
+
+        return
+    end
+
+
+    if not DragStart
+        or not StartPos then
+
+        return
+    end
+
+
+    local Delta =
+        Input.Position
+        - DragStart
+
+
+    Main.Position =
+        UDim2.new(
+
+            StartPos.X.Scale,
+
+            StartPos.X.Offset
+            + Delta.X,
+
+            StartPos.Y.Scale,
+
+            StartPos.Y.Offset
+            + Delta.Y
+
+        )
+
+end)
+
+
+--==================================================
+-- UPDATE SELECTED PET
+--==================================================
+
+local function IsSelected(PetName)
 
     for _, Name in ipairs(
         SelectedPets
@@ -1565,16 +2283,13 @@ local function IsSelected(
         if Name == PetName then
             return true
         end
+
     end
 
 
     return false
 end
 
-
---==================================================
--- UPDATE SELECTED
---==================================================
 
 local function UpdateSelectedPets()
 
@@ -1585,7 +2300,9 @@ local function UpdateSelectedPets()
         if Object:IsA("Frame") then
 
             Object:Destroy()
+
         end
+
     end
 
 
@@ -1596,13 +2313,15 @@ local function UpdateSelectedPets()
         local Row =
             Instance.new("Frame")
 
+
         Row.Size =
             UDim2.new(
                 1,
                 -5,
                 0,
-                24
+                20
             )
+
 
         Row.BackgroundColor3 =
             Color3.fromRGB(
@@ -1611,50 +2330,44 @@ local function UpdateSelectedPets()
                 30
             )
 
+
         Row.BorderSizePixel =
             0
+
 
         Row.Parent =
             SelectedFrame
 
 
-        local Corner =
-            Instance.new("UICorner")
-
-        Corner.CornerRadius =
-            UDim.new(
-                0,
-                4
-            )
-
-        Corner.Parent =
-            Row
-
-
         local NameLabel =
             Instance.new("TextLabel")
+
 
         NameLabel.Size =
             UDim2.new(
                 1,
-                -65,
+                -60,
                 1,
                 0
             )
 
+
         NameLabel.Position =
             UDim2.new(
                 0,
-                7,
+                6,
                 0,
                 0
             )
 
+
         NameLabel.BackgroundTransparency =
             1
 
+
         NameLabel.Text =
             "• " .. PetName
+
 
         NameLabel.TextColor3 =
             Color3.fromRGB(
@@ -1663,14 +2376,18 @@ local function UpdateSelectedPets()
                 230
             )
 
+
         NameLabel.TextSize =
-            10
+            8
+
 
         NameLabel.Font =
             Enum.Font.Gotham
 
+
         NameLabel.TextXAlignment =
             Enum.TextXAlignment.Left
+
 
         NameLabel.Parent =
             Row
@@ -1679,21 +2396,24 @@ local function UpdateSelectedPets()
         local Remove =
             Instance.new("TextButton")
 
+
         Remove.Size =
             UDim2.new(
                 0,
-                50,
+                48,
                 0,
-                18
+                16
             )
+
 
         Remove.Position =
             UDim2.new(
                 1,
-                -55,
+                -53,
                 0.5,
-                -9
+                -8
             )
+
 
         Remove.BackgroundColor3 =
             Color3.fromRGB(
@@ -1702,8 +2422,10 @@ local function UpdateSelectedPets()
                 40
             )
 
+
         Remove.Text =
-            "REMOVE"
+            "X"
+
 
         Remove.TextColor3 =
             Color3.fromRGB(
@@ -1712,63 +2434,50 @@ local function UpdateSelectedPets()
                 255
             )
 
+
         Remove.TextSize =
             8
+
 
         Remove.Font =
             Enum.Font.GothamBold
 
+
         Remove.BorderSizePixel =
             0
+
 
         Remove.Parent =
             Row
 
 
-        local RemoveCorner =
-            Instance.new("UICorner")
+        Remove.MouseButton1Click:Connect(function()
 
-        RemoveCorner.CornerRadius =
-            UDim.new(
-                0,
-                3
-            )
+            for i, Name in ipairs(
+                SelectedPets
+            ) do
 
-        RemoveCorner.Parent =
-            Remove
+                if Name == PetName then
 
+                    table.remove(
+                        SelectedPets,
+                        i
+                    )
 
-        Remove.MouseButton1Click:Connect(
-            function()
+                    break
 
-                for i, Name in ipairs(
-                    SelectedPets
-                ) do
-
-                    if Name == PetName then
-
-                        table.remove(
-                            SelectedPets,
-                            i
-                        )
-
-                        break
-                    end
                 end
 
-
-                SaveConfig()
-
-
-                Log(
-                    "➖ REMOVE PET:",
-                    PetName
-                )
-
-
-                UpdateSelectedPets()
             end
-        )
+
+
+            SaveConfig()
+
+
+            UpdateSelectedPets()
+
+        end)
+
     end
 
 
@@ -1779,25 +2488,20 @@ local function UpdateSelectedPets()
                 0,
                 0,
                 0,
-                SelectedLayout.AbsoluteContentSize.Y + 5
+                Layout.AbsoluteContentSize.Y
+                + 5
             )
+
     end)
+
 end
 
 
 --==================================================
--- BUILD DROPDOWN
+-- BUILD SEARCH RESULT
 --==================================================
 
-local function BuildDropdown(
-    Search
-)
-
-    Search =
-        string.lower(
-            Search or ""
-        )
-
+local function BuildSearchResults(Search)
 
     for _, Object in ipairs(
         DropdownList:GetChildren()
@@ -1806,11 +2510,20 @@ local function BuildDropdown(
         if Object:IsA("TextButton") then
 
             Object:Destroy()
+
         end
+
     end
 
 
-    local Count = 0
+    Search =
+        string.lower(
+            Search or ""
+        )
+
+
+    local Added =
+        0
 
 
     for _, PetName in ipairs(
@@ -1825,17 +2538,18 @@ local function BuildDropdown(
                 true
             ) then
 
-
             local Button =
                 Instance.new("TextButton")
+
 
             Button.Size =
                 UDim2.new(
                     1,
                     -5,
                     0,
-                    22
+                    20
                 )
+
 
             Button.BackgroundColor3 =
                 Color3.fromRGB(
@@ -1844,8 +2558,10 @@ local function BuildDropdown(
                     35
                 )
 
+
             Button.Text =
                 PetName
+
 
             Button.TextColor3 =
                 Color3.fromRGB(
@@ -1854,20 +2570,26 @@ local function BuildDropdown(
                     230
                 )
 
+
             Button.TextSize =
-                9
+                8
+
 
             Button.Font =
                 Enum.Font.Gotham
 
+
             Button.TextXAlignment =
                 Enum.TextXAlignment.Left
+
 
             Button.BorderSizePixel =
                 0
 
+
             Button.ZIndex =
-                21
+                51
+
 
             Button.Parent =
                 DropdownList
@@ -1876,34 +2598,39 @@ local function BuildDropdown(
             local Padding =
                 Instance.new("UIPadding")
 
+
             Padding.PaddingLeft =
                 UDim.new(
                     0,
-                    7
+                    6
                 )
+
 
             Padding.Parent =
                 Button
 
 
-            Button.MouseButton1Click:Connect(
-                function()
+            Button.MouseButton1Click:Connect(function()
 
-                    SearchBox.Text =
-                        PetName
-
-                    SearchBox.PlaceholderText =
-                        PetName
-
-                    DropdownList.Visible =
-                        false
-
-                end
-            )
+                SearchBox.Text =
+                    PetName
 
 
-            Count += 1
+                DropdownList.Visible =
+                    false
+
+            end)
+
+
+            Added += 1
+
+
+            if Added >= 100 then
+                break
+            end
+
         end
+
     end
 
 
@@ -1914,297 +2641,108 @@ local function BuildDropdown(
                 0,
                 0,
                 0,
-                DropdownLayout.AbsoluteContentSize.Y + 5
+                DropdownLayout.AbsoluteContentSize.Y
+                + 5
             )
+
     end)
 
-
-    return Count
 end
 
 
---==================================================
--- SEARCH
---==================================================
+SearchBox.Focused:Connect(function()
 
-SearchBox.Focused:Connect(
-    function()
+    if SearchBox.Text ==
+        "SELECT PET / SEARCH" then
 
-        DropdownList.Visible =
-            true
+        SearchBox.Text =
+            ""
 
-        BuildDropdown(
-            SearchBox.Text
-        )
     end
-)
+
+
+    BuildSearchResults(
+        SearchBox.Text
+    )
+
+
+    DropdownList.Visible =
+        true
+
+end)
 
 
 SearchBox:GetPropertyChangedSignal(
     "Text"
-):Connect(
-    function()
+):Connect(function()
 
-        if DropdownList.Visible then
+    if SearchBox:IsFocused() then
 
-            BuildDropdown(
-                SearchBox.Text
-            )
-        end
-    end
-)
-
-
---==================================================
--- CLICK SEARCHBOX
---==================================================
-
-SearchBox.InputBegan:Connect(
-    function(Input)
-
-        if Input.UserInputType ==
-            Enum.UserInputType.MouseButton1 then
-
-            DropdownList.Visible =
-                true
-
-            BuildDropdown(
-                SearchBox.Text
-            )
-        end
-    end
-)
-
-
---==================================================
--- ADD PET
---==================================================
-
-AddButton.MouseButton1Click:Connect(
-    function()
-
-        local PetName =
+        BuildSearchResults(
             SearchBox.Text
+        )
 
 
-        if PetName == "" then
+        DropdownList.Visible =
+            true
 
-            Log(
-                "⚠️ PILIH PET DULU"
-            )
-
-            return
-        end
-
-
-        --==========================================
-        -- VALIDATE AGAINST PETLIST
-        --==========================================
-
-        local Valid = false
-
-
-        for _, Name in ipairs(
-            PetList
-        ) do
-
-            if string.lower(Name)
-                == string.lower(PetName) then
-
-                PetName =
-                    Name
-
-                Valid = true
-
-                break
-            end
-        end
-
-
-        if not Valid then
-
-            Log(
-                "⚠️ PET TIDAK ADA DI PETLIST:",
-                PetName
-            )
-
-            return
-        end
-
-
-        if not IsSelected(PetName) then
-
-            table.insert(
-                SelectedPets,
-                PetName
-            )
-
-
-            SaveConfig()
-
-
-            Log(
-                "➕ ADD PET:",
-                PetName
-            )
-
-
-            UpdateSelectedPets()
-
-        else
-
-            Log(
-                "⚠️ PET SUDAH ADA:",
-                PetName
-            )
-        end
     end
-)
+
+end)
 
 
---==================================================
--- TOGGLE
---==================================================
+AddButton.MouseButton1Click:Connect(function()
 
-local function UpdateToggle()
+    local PetName =
+        SearchBox.Text
 
-    if Running then
 
-        Toggle.Text =
-            "ON"
+    if not PetName
+        or PetName == ""
+        or PetName == "SELECT PET / SEARCH" then
 
-        Toggle.BackgroundColor3 =
-            Color3.fromRGB(
-                40,
-                130,
-                60
-            )
+        Log(
+            "⚠ SELECT PET"
+        )
+
+        return
+
+    end
+
+
+    if not IsSelected(PetName) then
+
+        table.insert(
+            SelectedPets,
+            PetName
+        )
+
+
+        SaveConfig()
+
+
+        UpdateSelectedPets()
+
+
+        Log(
+            "ADD:",
+            PetName
+        )
 
     else
 
-        Toggle.Text =
-            "OFF"
+        Log(
+            "PET ALREADY SELECTED:",
+            PetName
+        )
 
-        Toggle.BackgroundColor3 =
-            Color3.fromRGB(
-                100,
-                40,
-                40
-            )
     end
-end
 
-
-Toggle.MouseButton1Click:Connect(
-    function()
-
-        Running =
-            not Running
-
-
-        UpdateToggle()
-
-
-        if Running then
-
-            Log(
-                "🟢 AUTO HATCH ON"
-            )
-
-        else
-
-            Log(
-                "🔴 AUTO HATCH OFF"
-            )
-        end
-    end
-)
+end)
 
 
 --==================================================
--- DRAG SYSTEM
---==================================================
-
-local Dragging = false
-local DragStart = nil
-local StartPos = nil
-
-
-Header.InputBegan:Connect(
-    function(Input)
-
-        if Input.UserInputType ==
-            Enum.UserInputType.MouseButton1
-            or Input.UserInputType ==
-            Enum.UserInputType.Touch then
-
-            Dragging = true
-
-            DragStart =
-                Input.Position
-
-            StartPos =
-                Main.Position
-
-        end
-    end
-)
-
-
-Header.InputEnded:Connect(
-    function(Input)
-
-        if Input.UserInputType ==
-            Enum.UserInputType.MouseButton1
-            or Input.UserInputType ==
-            Enum.UserInputType.Touch then
-
-            Dragging = false
-
-        end
-    end
-)
-
-
-UIS.InputChanged:Connect(
-    function(Input)
-
-        if not Dragging then
-            return
-        end
-
-
-        if Input.UserInputType ~=
-            Enum.UserInputType.MouseMovement
-            and Input.UserInputType ~=
-            Enum.UserInputType.Touch then
-
-            return
-        end
-
-
-        local Delta =
-            Input.Position
-            - DragStart
-
-
-        Main.Position =
-            UDim2.new(
-
-                StartPos.X.Scale,
-                StartPos.X.Offset
-                    + Delta.X,
-
-                StartPos.Y.Scale,
-                StartPos.Y.Offset
-                    + Delta.Y
-            )
-    end
-)
-
-
---==================================================
--- GET MY FARM
+-- FARM
 --==================================================
 
 local function GetMyFarm()
@@ -2244,17 +2782,19 @@ local function GetMyFarm()
 
 
                     if Owner
-                        and Owner:IsA(
-                            "StringValue"
-                        )
-                        and Owner.Value ==
-                        LP.Name then
+                        and Owner:IsA("StringValue")
+                        and Owner.Value == LP.Name then
 
                         return Farm
+
                     end
+
                 end
+
             end
+
         end
+
     end
 
 
@@ -2269,37 +2809,31 @@ local MyFarm =
 if not MyFarm then
 
     Log(
-        "❌ FARM PLAYER TIDAK DITEMUKAN"
+        "FARM PLAYER NOT FOUND"
     )
 
     return
+
 end
 
-
-Log(
-    "✅ MY FARM:",
-    MyFarm:GetFullName()
-)
-
-
---==================================================
--- FARM REFERENCES
---==================================================
 
 local Important =
     MyFarm:WaitForChild(
         "Important"
     )
 
+
 local ObjectsPhysical =
     Important:WaitForChild(
         "Objects_Physical"
     )
 
+
 local PlantLocations =
     Important:WaitForChild(
         "Plant_Locations"
     )
+
 
 local CanPlant =
     PlantLocations:WaitForChild(
@@ -2308,13 +2842,14 @@ local CanPlant =
 
 
 --==================================================
--- RANDOM PLACE
+-- RANDOM POSITION
 --==================================================
 
 local function GetRandomPlantPosition()
 
     local Size =
         CanPlant.Size
+
 
     local CF =
         CanPlant.CFrame
@@ -2324,24 +2859,26 @@ local function GetRandomPlantPosition()
         (math.random() - 0.5)
         * Size.X
 
+
     local Z =
         (math.random() - 0.5)
         * Size.Z
 
 
     return (
-        CF *
-        CFrame.new(
+        CF
+        * CFrame.new(
             X,
             Size.Y / 2,
             Z
         )
     ).Position
+
 end
 
 
 --==================================================
--- GET EGGS
+-- EGGS
 --==================================================
 
 local function GetEggs()
@@ -2354,14 +2891,15 @@ local function GetEggs()
     ) do
 
         if Object:IsA("Model")
-            and Object.Name ==
-            "PetEgg" then
+            and Object.Name == "PetEgg" then
 
             table.insert(
                 Eggs,
                 Object
             )
+
         end
+
     end
 
 
@@ -2372,11 +2910,12 @@ end
 local function GetEggCount()
 
     return #GetEggs()
+
 end
 
 
 --==================================================
--- FIND SPRINGTIDE EGG
+-- SPRINGTIDE EGG
 --==================================================
 
 local function FindSpringtideEgg()
@@ -2404,13 +2943,18 @@ local function FindSpringtideEgg()
                     == "Springtide Egg" then
 
                     return Tool
+
                 end
+
             end
+
         end
+
     end
 
 
     return nil
+
 end
 
 
@@ -2427,22 +2971,17 @@ local function EquipEgg()
     if not Egg then
 
         Log(
-            "❌ SPRINGTIDE EGG TIDAK DITEMUKAN"
+            "SPRINGTIDE EGG NOT FOUND"
         )
 
         return nil
+
     end
 
 
     local Character =
         LP.Character
         or LP.CharacterAdded:Wait()
-
-
-    Log(
-        "[EGG EQUIP]",
-        Egg.Name
-    )
 
 
     Egg.Parent =
@@ -2455,11 +2994,12 @@ local function EquipEgg()
 
 
     return Egg
+
 end
 
 
 --==================================================
--- UNEQUIP ALL TOOLS
+-- UNEQUIP TOOLS
 --==================================================
 
 local function UnequipAllTools()
@@ -2473,9 +3013,6 @@ local function UnequipAllTools()
     end
 
 
-    local Count = 0
-
-
     for _, Tool in ipairs(
         Character:GetChildren()
     ) do
@@ -2485,15 +3022,10 @@ local function UnequipAllTools()
             Tool.Parent =
                 Backpack
 
-            Count += 1
         end
+
     end
 
-
-    Log(
-        "🔄 UNEQUIP TOOLS:",
-        Count
-    )
 end
 
 
@@ -2501,14 +3033,13 @@ end
 -- CREATE EGG
 --==================================================
 
-local function CreateEgg(
-    Position
-)
+local function CreateEgg(Position)
 
     PetEggService:FireServer(
         "CreateEgg",
         Position
     )
+
 end
 
 
@@ -2516,30 +3047,26 @@ end
 -- PET UTIL
 --==================================================
 
-local function IsPet(
-    Tool
-)
+local function IsPet(Tool)
 
     return Tool:IsA("Tool")
         and Tool:GetAttribute(
             "ItemType"
         ) == "Pet"
+
 end
 
 
-local function GetUUID(
-    Tool
-)
+local function GetUUID(Tool)
 
     return Tool:GetAttribute(
         "PET_UUID"
     )
+
 end
 
 
-local function GetKG(
-    Tool
-)
+local function GetKG(Tool)
 
     local KG =
         string.match(
@@ -2549,6 +3076,7 @@ local function GetKG(
 
 
     return tonumber(KG) or 0
+
 end
 
 
@@ -2556,9 +3084,7 @@ end
 -- GET PETS
 --==================================================
 
-local function GetPets(
-    SearchName
-)
+local function GetPets(SearchName)
 
     local Result = {}
 
@@ -2570,12 +3096,8 @@ local function GetPets(
         if IsPet(Tool) then
 
             if string.find(
-                string.lower(
-                    Tool.Name
-                ),
-                string.lower(
-                    SearchName
-                ),
+                string.lower(Tool.Name),
+                string.lower(SearchName),
                 1,
                 true
             ) then
@@ -2595,9 +3117,13 @@ local function GetPets(
                             KG = GetKG(Tool)
                         }
                     )
+
                 end
+
             end
+
         end
+
     end
 
 
@@ -2612,6 +3138,7 @@ local function GetPets(
 
 
     return Result
+
 end
 
 
@@ -2621,7 +3148,8 @@ end
 
 local function GetTargetCount()
 
-    local Total = 0
+    local Total =
+        0
 
 
     for _, PetName in ipairs(
@@ -2629,13 +3157,26 @@ local function GetTargetCount()
     ) do
 
         Total +=
-            #GetPets(
-                PetName
-            )
+            #GetPets(PetName)
+
     end
 
 
     return Total
+
+end
+
+
+local function UpdateTargetCount()
+
+    local Count =
+        GetTargetCount()
+
+
+    TargetCountLabel.Text =
+        "TARGET: "
+        .. tostring(Count)
+
 end
 
 
@@ -2716,8 +3257,7 @@ local function GetActivePetData()
                 table.insert(
                     Result,
                     {
-                        UUID =
-                            PetFrame.Name,
+                        UUID = PetFrame.Name,
 
                         Name =
                             tostring(
@@ -2725,12 +3265,16 @@ local function GetActivePetData()
                             )
                     }
                 )
+
             end
+
         end
+
     end
 
 
     return Result
+
 end
 
 
@@ -2738,15 +3282,14 @@ end
 -- COUNT ACTIVE
 --==================================================
 
-local function CountActive(
-    SearchName
-)
+local function CountActive(SearchName)
+
+    local Count =
+        0
+
 
     local Active =
         GetActivePetData()
-
-
-    local Count = 0
 
 
     for _, Pet in ipairs(
@@ -2755,79 +3298,49 @@ local function CountActive(
 
         if string.find(
             string.lower(
-                tostring(
-                    Pet.Name
-                )
+                tostring(Pet.Name)
             ),
-            string.lower(
-                SearchName
-            ),
+            string.lower(SearchName),
             1,
             true
         ) then
 
             Count += 1
+
         end
+
     end
 
 
     return Count
+
 end
 
 
 --==================================================
--- DEBUG ACTIVE
+-- UNEQUIP PET
 --==================================================
 
-local function DebugActivePets()
-
-    local Active =
-        GetActivePetData()
-
-
-    Log(
-        "ACTIVE:",
-        #Active
-    )
-
-
-    for i, Pet in ipairs(
-        Active
-    ) do
-
-        Log(
-            "#",
-            i,
-            Pet.Name,
-            Pet.UUID
-        )
-    end
-end
-
-
---==================================================
--- UNEQUIP ONE PET
---==================================================
-
-local function UnequipPet(
-    UUID
-)
+local function UnequipPet(UUID)
 
     if not UUID then
         return
     end
 
 
-    local args = {
+    local Args = {
 
-        [1] = "UnequipPet",
+        [1] =
+            "UnequipPet",
 
-        [2] = UUID
+        [2] =
+            UUID
+
     }
 
 
     PetsService:FireServer(
-        unpack(args)
+        unpack(Args)
     )
 
 
@@ -2835,30 +3348,23 @@ local function UnequipPet(
 
 
     PetsService:FireServer(
-        unpack(args)
+        unpack(Args)
     )
 
 
-    task.wait(
-        0.1
-    )
+    task.wait(0.05)
+
 end
 
 
 --==================================================
--- UNEQUIP ALL PET
+-- UNEQUIP ALL PETS
 --==================================================
 
 local function UnequipAllPets()
 
     local Active =
         GetActivePetData()
-
-
-    Log(
-        "UNEQUIP ALL PET:",
-        #Active
-    )
 
 
     for _, Pet in ipairs(
@@ -2868,12 +3374,14 @@ local function UnequipAllPets()
         UnequipPet(
             Pet.UUID
         )
+
     end
 
 
     task.wait(
-        1
+        0.5
     )
+
 end
 
 
@@ -2881,34 +3389,26 @@ end
 -- EQUIP PET
 --==================================================
 
-local function EquipPet(
-    Pet
-)
+local function EquipPet(Pet)
 
     if not Pet then
         return
     end
 
 
-    local args = {
+    local Args = {
 
-        [1] = "EquipPet",
+        [1] =
+            "EquipPet",
 
-        [2] = Pet.UUID
+        [2] =
+            Pet.UUID
+
     }
 
 
-    Log(
-        "[EQUIP]",
-        Pet.Name,
-        "|",
-        Pet.KG,
-        "KG"
-    )
-
-
     PetsService:FireServer(
-        unpack(args)
+        unpack(Args)
     )
 
 
@@ -2916,42 +3416,37 @@ local function EquipPet(
 
 
     PetsService:FireServer(
-        unpack(args)
+        unpack(Args)
     )
 
 
     task.wait(
         Config.EQUIP_DELAY
     )
+
 end
 
 
 --==================================================
--- CHECK BALD + MIMIC
+-- BALD + MIMIC CHECK
 --==================================================
 
 local function CheckBaldMimic()
 
-    local Bald =
+    return
+
         CountActive(
             "Bald Eagle"
         )
-
-
-    local Mimic =
-        CountActive(
-            "Mimic Octopus"
-        )
-
-
-    return
-        Bald >=
-        Config.BALD_TARGET
+        >= Config.BALD_TARGET
 
         and
 
-        Mimic >=
-        Config.MIMIC_TARGET
+        CountActive(
+            "Mimic Octopus"
+        )
+        >= Config.MIMIC_TARGET
+
 end
 
 
@@ -2976,13 +3471,18 @@ local function BuildBaldMimic()
         )
 
 
-    if not Bald[1] then
+    if #Bald <
+        Config.BALD_TARGET then
 
         Log(
-            "❌ BALD EAGLE TIDAK ADA"
+            "BALD:",
+            #Bald,
+            "/",
+            Config.BALD_TARGET
         )
 
         return Result
+
     end
 
 
@@ -2990,13 +3490,14 @@ local function BuildBaldMimic()
         Config.MIMIC_TARGET then
 
         Log(
-            "❌ MIMIC KURANG:",
+            "MIMIC:",
             #Mimic,
             "/",
             Config.MIMIC_TARGET
         )
 
         return Result
+
     end
 
 
@@ -3007,6 +3508,7 @@ local function BuildBaldMimic()
             Result,
             Bald[i]
         )
+
     end
 
 
@@ -3017,20 +3519,27 @@ local function BuildBaldMimic()
             Result,
             Mimic[i]
         )
+
     end
 
 
     return Result
+
 end
 
 
 --==================================================
--- SET BALD + MIMIC
+-- SET BALD MIMIC
 --==================================================
 
 local function SetBaldMimic()
 
-    for Attempt = 1, 15 do
+    SetState(
+        "BALD + MIMIC"
+    )
+
+
+    for Attempt = 1, 10 do
 
         if not Running then
             return false
@@ -3039,11 +3548,8 @@ local function SetBaldMimic()
 
         if CheckBaldMimic() then
 
-            Log(
-                "✅ BALD + MIMIC OK"
-            )
-
             return true
+
         end
 
 
@@ -3056,6 +3562,7 @@ local function SetBaldMimic()
             + Config.MIMIC_TARGET then
 
             return false
+
         end
 
 
@@ -3071,9 +3578,8 @@ local function SetBaldMimic()
             end
 
 
-            EquipPet(
-                Pet
-            )
+            EquipPet(Pet)
+
         end
 
 
@@ -3082,61 +3588,38 @@ local function SetBaldMimic()
         )
 
 
-        DebugActivePets()
-
-
         if CheckBaldMimic() then
-
-            Log(
-                "✅ BALD + MIMIC SUCCESS"
-            )
-
             return true
         end
 
-
-        task.wait(
-            2
-        )
     end
 
 
     return false
+
 end
 
 
 --==================================================
--- CHECK KOI + BRONTO
+-- KOI + BRONTO
 --==================================================
 
 local function CheckKoiBronto()
 
-    local Koi =
-        CountActive(
-            "Koi"
-        )
-
-
-    local Bronto =
-        CountActive(
-            "Brontosaurus"
-        )
-
-
     return
-        Koi >=
-        Config.KOI_TARGET
+
+        CountActive("Koi")
+        >= Config.KOI_TARGET
 
         and
 
-        Bronto >=
-        Config.BRONTO_TARGET
+        CountActive(
+            "Brontosaurus"
+        )
+        >= Config.BRONTO_TARGET
+
 end
 
-
---==================================================
--- BUILD KOI + BRONTO
---==================================================
 
 local function BuildKoiBronto()
 
@@ -3144,9 +3627,7 @@ local function BuildKoiBronto()
 
 
     local Koi =
-        GetPets(
-            "Koi"
-        )
+        GetPets("Koi")
 
 
     local Bronto =
@@ -3159,11 +3640,14 @@ local function BuildKoiBronto()
         Config.KOI_TARGET then
 
         Log(
-            "❌ KOI KURANG:",
-            #Koi
+            "KOI:",
+            #Koi,
+            "/",
+            Config.KOI_TARGET
         )
 
         return Result
+
     end
 
 
@@ -3171,11 +3655,14 @@ local function BuildKoiBronto()
         Config.BRONTO_TARGET then
 
         Log(
-            "❌ BRONTO KURANG:",
-            #Bronto
+            "BRONTO:",
+            #Bronto,
+            "/",
+            Config.BRONTO_TARGET
         )
 
         return Result
+
     end
 
 
@@ -3186,6 +3673,7 @@ local function BuildKoiBronto()
             Result,
             Koi[i]
         )
+
     end
 
 
@@ -3196,20 +3684,23 @@ local function BuildKoiBronto()
             Result,
             Bronto[i]
         )
+
     end
 
 
     return Result
+
 end
 
 
---==================================================
--- SET KOI + BRONTO
---==================================================
-
 local function SetKoiBronto()
 
-    for Attempt = 1, 15 do
+    SetState(
+        "KOI + BRONTO"
+    )
+
+
+    for Attempt = 1, 10 do
 
         if not Running then
             return false
@@ -3217,11 +3708,6 @@ local function SetKoiBronto()
 
 
         if CheckKoiBronto() then
-
-            Log(
-                "✅ KOI + BRONTO OK"
-            )
-
             return true
         end
 
@@ -3235,6 +3721,7 @@ local function SetKoiBronto()
             + Config.BRONTO_TARGET then
 
             return false
+
         end
 
 
@@ -3250,9 +3737,8 @@ local function SetKoiBronto()
             end
 
 
-            EquipPet(
-                Pet
-            )
+            EquipPet(Pet)
+
         end
 
 
@@ -3261,31 +3747,139 @@ local function SetKoiBronto()
         )
 
 
-        DebugActivePets()
-
-
         if CheckKoiBronto() then
-
-            Log(
-                "✅ KOI + BRONTO SUCCESS"
-            )
-
             return true
         end
 
-
-        task.wait(
-            2
-        )
     end
 
 
     return false
+
 end
 
 
 --==================================================
--- ALL EGG READY
+-- SEAL
+--==================================================
+
+local function CheckSeals()
+
+    return
+
+        CountActive("Seal")
+        >= Config.SEAL_TARGET
+
+end
+
+
+local function BuildSeals()
+
+    local Result = {}
+
+
+    local Seals =
+        GetPets("Seal")
+
+
+    if #Seals <
+        Config.SEAL_TARGET then
+
+        Log(
+            "SEAL:",
+            #Seals,
+            "/",
+            Config.SEAL_TARGET
+        )
+
+        return Result
+
+    end
+
+
+    for i = 1,
+        Config.SEAL_TARGET do
+
+        table.insert(
+            Result,
+            Seals[i]
+        )
+
+    end
+
+
+    return Result
+
+end
+
+
+local function SetSeals()
+
+    SetState(
+        "EQUIP SEAL"
+    )
+
+
+    for Attempt = 1, 10 do
+
+        if not Running then
+            return false
+        end
+
+
+        if CheckSeals() then
+            return true
+        end
+
+
+        local Desired =
+            BuildSeals()
+
+
+        if #Desired <
+            Config.SEAL_TARGET then
+
+            return false
+
+        end
+
+
+        UnequipAllPets()
+
+
+        for _, Pet in ipairs(
+            Desired
+        ) do
+
+            if not Running then
+                return false
+            end
+
+
+            EquipPet(Pet)
+
+        end
+
+
+        task.wait(
+            Config.AFTER_EQUIP_WAIT
+        )
+
+
+        if CheckSeals() then
+            return true
+        end
+
+    end
+
+
+    return false
+
+end
+
+
+--==================================================
+-- ALL EGGS READY
 --==================================================
 
 local function AllEggsReady()
@@ -3312,18 +3906,25 @@ local function AllEggsReady()
         if Time ~= 0 then
             return false
         end
+
     end
 
 
     return true
+
 end
 
 
 --==================================================
--- WAIT ALL EGG READY
+-- WAIT EGGS
 --==================================================
 
 local function WaitAllEggReady()
+
+    SetState(
+        "WAIT EGG"
+    )
+
 
     while Running do
 
@@ -3335,6 +3936,7 @@ local function WaitAllEggReady()
             Config.TARGET_LIMIT then
 
             return false
+
         end
 
 
@@ -3349,32 +3951,34 @@ local function WaitAllEggReady()
 
         if AllEggsReady() then
 
-            Log(
-                "✅ SEMUA EGG READY"
-            )
-
             return true
+
         end
 
 
         task.wait(
-            Config.LOOP_DELAY
+            math.max(
+                0.5,
+                Config.LOOP_DELAY
+            )
         )
+
     end
 
 
     return false
+
 end
 
 
 --==================================================
--- HATCH ALL
+-- HATCH
 --==================================================
 
 local function HatchAll()
 
     if not Running then
-        return
+        return false
     end
 
 
@@ -3383,32 +3987,26 @@ local function HatchAll()
 
 
     if #Eggs == 0 then
-        return
+        return false
     end
 
 
     if not AllEggsReady() then
-
-        Log(
-            "❌ HATCH DIBATALKAN"
-        )
-
-        return
+        return false
     end
 
 
-    Log(
-        "🥚 HATCH ALL:",
-        #Eggs
+    SetState(
+        "HATCH"
     )
 
 
-    for i, Egg in ipairs(
+    for _, Egg in ipairs(
         Eggs
     ) do
 
         if not Running then
-            return
+            return false
         end
 
 
@@ -3421,193 +4019,42 @@ local function HatchAll()
             )
 
 
-            Log(
-                "[HATCH]",
-                i,
-                "/",
-                #Eggs
-            )
-
-
             task.wait(
                 Config.HATCH_DELAY
             )
+
         end
+
     end
 
 
-    task.wait(
-        1
-    )
+    task.wait(1)
 
 
-    Log(
-        "✅ HATCH SELESAI"
-    )
+    return true
+
 end
 
 
 --==================================================
--- CHECK SEALS
---==================================================
-
-local function CheckSeals()
-
-    local Seal =
-        CountActive(
-            "Seal"
-        )
-
-
-    return
-        Seal >=
-        Config.SEAL_TARGET
-end
-
-
---==================================================
--- BUILD SEALS
---==================================================
-
-local function BuildSeals()
-
-    local Result = {}
-
-
-    local Seals =
-        GetPets(
-            "Seal"
-        )
-
-
-    if #Seals <
-        Config.SEAL_TARGET then
-
-        Log(
-            "❌ SEAL KURANG:",
-            #Seals,
-            "/",
-            Config.SEAL_TARGET
-        )
-
-        return Result
-    end
-
-
-    for i = 1,
-        Config.SEAL_TARGET do
-
-        table.insert(
-            Result,
-            Seals[i]
-        )
-    end
-
-
-    return Result
-end
-
-
---==================================================
--- SET SEALS
---==================================================
-
-local function SetSeals()
-
-    for Attempt = 1, 15 do
-
-        if not Running then
-            return false
-        end
-
-
-        if CheckSeals() then
-
-            Log(
-                "✅ SEAL OK"
-            )
-
-            return true
-        end
-
-
-        local Desired =
-            BuildSeals()
-
-
-        if #Desired <
-            Config.SEAL_TARGET then
-
-            return false
-        end
-
-
-        UnequipAllPets()
-
-
-        for _, Pet in ipairs(
-            Desired
-        ) do
-
-            if not Running then
-                return false
-            end
-
-
-            EquipPet(
-                Pet
-            )
-        end
-
-
-        task.wait(
-            Config.AFTER_EQUIP_WAIT
-        )
-
-
-        DebugActivePets()
-
-
-        if CheckSeals() then
-
-            Log(
-                "✅ SEAL SUCCESS"
-            )
-
-            return true
-        end
-
-
-        task.wait(
-            2
-        )
-    end
-
-
-    return false
-end
-
-
---==================================================
--- SELL TARGET PETS
+-- SELL
 --==================================================
 
 local function SellTargetPets()
 
-    Log(
-        "💰 SELL TARGET <",
-        Config.SELL_KG_LIMIT,
-        "KG"
+    SetState(
+        "SELL"
     )
 
 
     if #SelectedPets == 0 then
 
         Log(
-            "⚠️ BELUM ADA PET COUNT/SELL"
+            "NO SELECTED SELL PET"
         )
 
         return
+
     end
 
 
@@ -3620,10 +4067,12 @@ local function SellTargetPets()
 
         SellNames[PetName] =
             true
+
     end
 
 
-    local Count = 0
+    local Count =
+        0
 
 
     for _, Tool in ipairs(
@@ -3637,7 +4086,8 @@ local function SellTargetPets()
 
         if Tool:IsA("Tool") then
 
-            local PetName
+            local PetName =
+                nil
 
 
             for Name in pairs(
@@ -3645,14 +4095,17 @@ local function SellTargetPets()
             ) do
 
                 if Tool.Name:match(
-                    "^" .. Name
+                    "^"
+                    .. Name
                 ) then
 
                     PetName =
                         Name
 
                     break
+
                 end
+
             end
 
 
@@ -3670,15 +4123,6 @@ local function SellTargetPets()
                     and KG <
                     Config.SELL_KG_LIMIT then
 
-                    Log(
-                        "SELL:",
-                        Tool.Name,
-                        "|",
-                        KG,
-                        "KG"
-                    )
-
-
                     SellRemote:FireServer(
                         Tool,
                         true
@@ -3691,21 +4135,26 @@ local function SellTargetPets()
                     task.wait(
                         Config.SELL_DELAY
                     )
+
                 end
+
             end
+
         end
+
     end
 
 
     Log(
-        "💰 TOTAL SOLD:",
+        "SOLD:",
         Count
     )
 
 
     task.wait(
-        1
+        0.5
     )
+
 end
 
 
@@ -3713,7 +4162,7 @@ end
 -- PLACE EGGS
 --==================================================
 
-local function PlaceEggsUntil13()
+local function PlaceEggsUntilTarget()
 
     local Current =
         GetEggCount()
@@ -3722,27 +4171,19 @@ local function PlaceEggsUntil13()
     if Current >=
         Config.MAX_EGG then
 
-        Log(
-            "✅ EGG SUDAH",
-            Current,
-            "/",
-            Config.MAX_EGG
-        )
-
         return true
+
     end
+
+
+    SetState(
+        "PLACE EGG"
+    )
 
 
     while Running
         and Current <
         Config.MAX_EGG do
-
-        Log(
-            "🥚 PLACE EGG:",
-            Current,
-            "/",
-            Config.MAX_EGG
-        )
 
 
         local EggTool =
@@ -3754,8 +4195,16 @@ local function PlaceEggsUntil13()
         end
 
 
-        for i = 1,
-            Config.PLACE_BATCH do
+        local Batch =
+            math.max(
+                1,
+                math.floor(
+                    Config.PLACE_BATCH
+                )
+            )
+
+
+        for i = 1, Batch do
 
             if not Running then
                 return false
@@ -3770,21 +4219,19 @@ local function PlaceEggsUntil13()
                 Config.MAX_EGG then
 
                 break
+
             end
 
 
-            local Position =
-                GetRandomPlantPosition()
-
-
             CreateEgg(
-                Position
+                GetRandomPlantPosition()
             )
 
 
             task.wait(
                 Config.PLACE_DELAY
             )
+
         end
 
 
@@ -3800,40 +4247,24 @@ local function PlaceEggsUntil13()
             GetEggCount()
 
 
-        Log(
-            "AFTER PLACE:",
-            Current,
-            "/",
-            Config.MAX_EGG
-        )
-
-
-        if Current >=
-            Config.MAX_EGG then
-
-            Log(
-                "✅ EGG TARGET TERCAPAI"
-            )
-
-            return true
-        end
     end
 
 
-    return Current >=
+    return
+        Current >=
         Config.MAX_EGG
+
 end
 
 
 --==================================================
--- STATE LOW
+-- LOW STATE
 --==================================================
 
 local function StateLowTarget()
 
-    Log(
-        "▶ STATE LOW | TARGET <",
-        Config.TARGET_LIMIT
+    SetState(
+        "LOW TARGET"
     )
 
 
@@ -3848,9 +4279,10 @@ local function StateLowTarget()
     if GetEggCount() <
         Config.MAX_EGG then
 
-        if not PlaceEggsUntil13() then
+        if not PlaceEggsUntilTarget() then
             return
         end
+
     end
 
 
@@ -3863,6 +4295,7 @@ local function StateLowTarget()
         Config.MAX_EGG then
 
         return
+
     end
 
 
@@ -3897,18 +4330,18 @@ local function StateLowTarget()
 
 
     HatchAll()
+
 end
 
 
 --==================================================
--- STATE HIGH
+-- HIGH STATE
 --==================================================
 
 local function StateHighTarget()
 
-    Log(
-        "▶ STATE HIGH | TARGET >=",
-        Config.TARGET_LIMIT
+    SetState(
+        "HIGH TARGET"
     )
 
 
@@ -3939,49 +4372,42 @@ local function StateHighTarget()
             GetTargetCount()
 
 
-        Log(
-            "TARGET PET:",
-            Count,
-            "| REQUIRED >=",
-            Config.TARGET_LIMIT
-        )
-
-
         if Count <
             Config.TARGET_LIMIT then
 
-            Log(
-                "🔄 TARGET TURUN <",
-                Config.TARGET_LIMIT
-            )
-
             return
+
         end
 
 
         if not CheckSeals() then
 
-            Log(
-                "⚠️ SEAL BERUBAH → REPAIR"
-            )
-
-
             if not SetSeals() then
                 return
             end
+
         end
 
 
         task.wait(
-            Config.LOOP_DELAY
+            math.max(
+                1,
+                Config.LOOP_DELAY
+            )
         )
+
     end
+
 end
 
 
 --==================================================
 -- MAIN LOOP
 --==================================================
+
+local MainLoopStarted =
+    false
+
 
 local function StartMainLoop()
 
@@ -3994,99 +4420,125 @@ local function StartMainLoop()
         true
 
 
-    task.spawn(
-        function()
+    task.spawn(function()
 
-            while true do
+        while true do
 
-                if Running then
+            if Running then
 
-                    local TargetCount =
-                        GetTargetCount()
+                UpdateTargetCount()
 
 
-                    local EggCount =
-                        GetEggCount()
+                local TargetCount =
+                    GetTargetCount()
 
 
-                    Log(
-                        "CHECK | TARGET:",
-                        TargetCount,
-                        "| EGG:",
-                        EggCount,
-                        "/",
-                        Config.MAX_EGG
-                    )
+                local EggCount =
+                    GetEggCount()
 
 
-                    if TargetCount >=
-                        Config.TARGET_LIMIT then
+                if TargetCount >=
+                    Config.TARGET_LIMIT then
 
-                        StateHighTarget()
+                    StateHighTarget()
 
-                    else
+                else
 
-                        StateLowTarget()
+                    StateLowTarget()
 
-                    end
                 end
 
+            else
 
-                task.wait(
-                    Config.LOOP_DELAY
+                SetState(
+                    "OFF"
                 )
+
+
+                task.wait(1)
+
             end
+
         end
-    )
+
+    end)
+
 end
 
 
 --==================================================
--- START
+-- TOGGLE
 --==================================================
 
-BuildDropdown(
-    SearchBox.Text
-)
+Toggle.MouseButton1Click:Connect(function()
+
+    Running =
+        not Running
+
+
+    UpdateToggle()
+
+
+    if Running then
+
+        Log(
+            "AUTO HATCH ON"
+        )
+
+    else
+
+        Log(
+            "AUTO HATCH OFF"
+        )
+
+    end
+
+end)
+
+
+--==================================================
+-- INITIAL GUI
+--==================================================
 
 UpdateSelectedPets()
+
+UpdateTargetCount()
 
 UpdateToggle()
 
 
 Log(
-    "================================"
+    "=============================="
 )
 
-Log(
-    "🚀 AUTO HATCH READY"
-)
 
 Log(
-    "📋 PETLIST:",
-    #PetList,
-    "PETS"
+    "AUTO HATCH READY"
 )
 
-Log(
-    "💾 CONFIG LOADED"
-)
 
 Log(
-    "💾 SELECTED PET:",
+    "PETLIST:",
+    #PetList
+)
+
+
+Log(
+    "SELECTED:",
     #SelectedPets
 )
 
-Log(
-    "🔴 STATUS: OFF"
-)
 
 Log(
-    "Edit config lalu tekan ON"
+    "STATUS:",
+    Running
+    and "ON"
+    or "OFF"
 )
 
+
 Log(
-    "================================"
+    "=============================="
 )
 
 
