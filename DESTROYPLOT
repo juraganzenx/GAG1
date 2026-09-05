@@ -1,0 +1,310 @@
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+local LP = Players.LocalPlayer
+local FarmFolder = Workspace:WaitForChild("Farm")
+
+--==================================================
+-- ULTRA LOW GRAPHIC
+--==================================================
+
+pcall(function()
+
+    -- Graphics Quality
+    local QualityLevel = settings().Rendering.QualityLevel
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+    -- Lighting
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 100000
+    Lighting.Brightness = 1
+
+    -- Disable post processing
+    for _, Object in ipairs(Lighting:GetChildren()) do
+
+        if Object:IsA("PostEffect")
+            or Object:IsA("Atmosphere") then
+
+            pcall(function()
+                Object.Enabled = false
+            end)
+
+        end
+    end
+
+    -- Workspace rendering optimization
+    for _, Object in ipairs(Workspace:GetDescendants()) do
+
+        if Object:IsA("ParticleEmitter")
+            or Object:IsA("Trail")
+            or Object:IsA("Beam") then
+
+            Object.Enabled = false
+
+        elseif Object:IsA("Smoke")
+            or Object:IsA("Fire")
+            or Object:IsA("Sparkles") then
+
+            Object.Enabled = false
+
+        elseif Object:IsA("BasePart") then
+
+            Object.CastShadow = false
+            Object.Reflectance = 0
+
+        end
+    end
+
+    -- Terrain
+    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+
+    if Terrain then
+        pcall(function()
+            Terrain.Decoration = false
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 0.5
+        end)
+    end
+
+    print("⚡ ULTRA LOW GRAPHIC: ON")
+
+end)
+
+--==================================================
+-- GET FARM OWNER
+--==================================================
+
+local function GetFarmOwner(Farm)
+
+    local Important = Farm:FindFirstChild("Important")
+
+    if not Important then
+        return nil
+    end
+
+    local Data = Important:FindFirstChild("Data")
+
+    if not Data then
+        return nil
+    end
+
+    local Owner = Data:FindFirstChild("Owner")
+
+    if Owner and Owner:IsA("StringValue") then
+        return Owner.Value
+    end
+
+    return nil
+end
+
+--==================================================
+-- GET MY FARM
+--==================================================
+
+local function GetMyFarm()
+
+    for _, Farm in ipairs(FarmFolder:GetChildren()) do
+
+        if Farm.Name == "Farm" then
+
+            local Owner = GetFarmOwner(Farm)
+
+            if Owner == LP.Name then
+                return Farm
+            end
+
+        end
+    end
+
+    return nil
+end
+
+--==================================================
+-- FIND MY FARM
+--==================================================
+
+local MyFarm = GetMyFarm()
+
+if not MyFarm then
+
+    warn("❌ FARM PLAYER TIDAK DITEMUKAN")
+
+    return
+end
+
+print("✅ MY FARM:", MyFarm:GetFullName())
+
+--==================================================
+-- DESTROY FARM BUKAN MILIK KITA
+--==================================================
+
+for _, Farm in ipairs(FarmFolder:GetChildren()) do
+
+    if Farm.Name == "Farm"
+        and Farm ~= MyFarm then
+
+        local Owner = GetFarmOwner(Farm)
+
+        if Owner ~= LP.Name then
+
+            print(
+                "🗑️ DESTROY FARM:",
+                Farm:GetFullName(),
+                "OWNER:",
+                Owner
+            )
+
+            Farm:Destroy()
+        end
+    end
+end
+
+--==================================================
+-- FARM BARU
+--==================================================
+
+FarmFolder.ChildAdded:Connect(function(Farm)
+
+    task.wait()
+
+    if Farm.Name ~= "Farm" then
+        return
+    end
+
+    local Owner = GetFarmOwner(Farm)
+
+    if Owner ~= LP.Name then
+
+        print(
+            "🗑️ NEW FARM DESTROY:",
+            Farm:GetFullName(),
+            "OWNER:",
+            Owner
+        )
+
+        Farm:Destroy()
+    end
+end)
+
+--==================================================
+-- WORKSPACE CLEANER
+--==================================================
+
+local function CheckWorkspaceObject(Object)
+
+    -- PetsPhysical selalu destroy
+    if Object.Name == "PetsPhysical" then
+
+        print(
+            "🗑️ DESTROY PetsPhysical:",
+            Object:GetFullName()
+        )
+
+        Object:Destroy()
+
+        return
+    end
+
+    -- Object tanpa child
+    if #Object:GetChildren() == 0 then
+
+        print(
+            "🗑️ DESTROY EMPTY:",
+            Object:GetFullName()
+        )
+
+        Object:Destroy()
+
+    end
+end
+
+--==================================================
+-- CHECK WORKSPACE EXISTING
+--==================================================
+
+for _, Object in ipairs(Workspace:GetChildren()) do
+
+    if Object ~= FarmFolder then
+        CheckWorkspaceObject(Object)
+    end
+
+end
+
+--==================================================
+-- WORKSPACE CHILD ADDED
+--==================================================
+
+Workspace.ChildAdded:Connect(function(Object)
+
+    task.wait()
+
+    if Object == FarmFolder then
+        return
+    end
+
+    CheckWorkspaceObject(Object)
+
+end)
+
+--==================================================
+-- ULTRA LOW GRAPHIC FOR NEW OBJECTS
+--==================================================
+
+Workspace.DescendantAdded:Connect(function(Object)
+
+    task.wait()
+
+    pcall(function()
+
+        if Object:IsA("ParticleEmitter")
+            or Object:IsA("Trail")
+            or Object:IsA("Beam")
+            or Object:IsA("Smoke")
+            or Object:IsA("Fire")
+            or Object:IsA("Sparkles") then
+
+            Object.Enabled = false
+
+        elseif Object:IsA("BasePart") then
+
+            Object.CastShadow = false
+            Object.Reflectance = 0
+
+        end
+
+    end)
+
+end)
+
+--==================================================
+-- KEEP GRAPHIC LOW
+--==================================================
+
+task.spawn(function()
+
+    while task.wait(5) do
+
+        pcall(function()
+
+            settings().Rendering.QualityLevel =
+                Enum.QualityLevel.Level01
+
+            Lighting.GlobalShadows = false
+
+        end)
+
+    end
+
+end)
+
+print("======================================")
+print("⚡ ULTRA LOW GRAPHIC : ON")
+print("🗑️ NON-OWNER FARM : DESTROY")
+print("🗑️ PetsPhysical : DESTROY")
+print("🗑️ EMPTY WORKSPACE OBJECT : DESTROY")
+print("⚡ NEW OBJECT GRAPHIC : LOW")
+print("======================================")
