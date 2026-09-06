@@ -1,8 +1,9 @@
+--//==================================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
 --// AUTO TRADE:
---// TARGET PLAYER = RX6Z7P
+--// TARGET PLAYER = FROM GITHUB addusername.json
 --// TARGET PERYTON < 12
 --// LOCAL PERYTON > 12
 --//
@@ -10,17 +11,37 @@
 --// STOP ALL STATE
 --// -> EQUIP TRADING TICKET xN
 --// -> SEND REQUEST
---// -> ADD MAX 12 PERYTON
+--// -> ADD MAX 20 PERYTON
 --// -> ACCEPT
 --// -> CONFIRM
 --// -> UNEQUIP ALL TOOLS
 --// -> RESUME AUTO HATCH
 --//
---// TRADING TICKET:
---// Trading Ticket x1
---// Trading Ticket x12
---// Trading Ticket x50
---// dll tetap terdeteksi
+--// GITHUB:
+--// https://raw.githubusercontent.com/juraganzenx/roblox-jobs/refs/heads/main/addusername.json
+--//
+--// GITHUB DIBACA:
+--// -> 1x SAAT EXECUTE
+--// -> TIDAK POLLING
+--// -> HASIL DISIMPAN KE LOCAL JSON
+--//
+--// SELF USERNAME:
+--// -> OTOMATIS DIKECUALIKAN
+--//
+--// CONTOH JSON:
+--// [
+--//     {
+--//         "username":"asepppy38",
+--//         "timestamp":1788706726,
+--//         "userId":8508210035
+--//     },
+--//     {
+--//         "username":"W6MN2J",
+--//         "timestamp":1788707007,
+--//         "userId":11422382110
+--//     }
+--// ]
+--//
 --//==================================================
 
 
@@ -104,8 +125,11 @@ local ConfirmEvent =
 -- TRADE CONFIG
 --==================================================
 
-local TRADE_PLAYER_NAME =
-    "RX6Z7P"
+local TRADE_TARGET_URL =
+    "https://raw.githubusercontent.com/juraganzenx/roblox-jobs/refs/heads/main/addusername.json"
+
+local TRADE_TARGET_CACHE =
+    "AutoHatch_TradeTargets.json"
 
 local TRADE_MAX_PERYTON =
     20
@@ -185,6 +209,7 @@ local DefaultConfig = {
 
 
 local Config = {}
+
 
 for Key, Value in pairs(
     DefaultConfig
@@ -292,6 +317,18 @@ local MainLoopStarted =
 
 local CurrentState =
     "IDLE"
+
+
+--==================================================
+-- TRADE TARGET VARIABLES
+--==================================================
+
+local TradeTargets = {}
+
+local TradeTargetMap = {}
+
+local TradeTargetLoaded =
+    false
 
 
 --==================================================
@@ -4271,6 +4308,7 @@ local function StateLowTarget()
 
     if not WaitAllEggReady() then
         return
+
     end
 
 
@@ -4451,35 +4489,445 @@ end
 
 local function GetLocalPerytonCount()
 
-    return #GetPerytonFromContainer(
-        Backpack
-    )
+    local Count =
+        #GetPerytonFromContainer(
+            Backpack
+        )
+
+
+    local Character =
+        LP.Character
+
+
+    if Character then
+
+        Count += #GetPerytonFromContainer(
+            Character
+        )
+
+    end
+
+
+    return Count
 
 end
 
 
 --==================================================
--- TARGET PLAYER
+-- GITHUB HTTP
 --==================================================
 
-local function GetTradeTarget()
+local function GetHttpGet()
 
-    return Players:FindFirstChild(
-        TRADE_PLAYER_NAME
-    )
+    if game.HttpGet then
+
+        return function(URL)
+
+            return game:HttpGet(
+                URL
+            )
+
+        end
+
+    end
+
+
+    if request then
+
+        return function(URL)
+
+            local Response =
+                request({
+                    Url = URL,
+                    Method = "GET"
+                })
+
+
+            if Response
+                and Response.Body then
+
+                return Response.Body
+
+            end
+
+
+            return nil
+
+        end
+
+    end
+
+
+    return nil
 
 end
 
 
 --==================================================
--- TARGET PERYTON COUNT
+-- SAVE TRADE TARGET CACHE
 --==================================================
 
-local function GetTargetPerytonCount()
+local function SaveTradeTargetCache()
 
-    local Target =
-        GetTradeTarget()
+    if not writefile then
+        return
+    end
 
+
+    pcall(function()
+
+        writefile(
+            TRADE_TARGET_CACHE,
+            HttpService:JSONEncode(
+                TradeTargets
+            )
+        )
+
+    end)
+
+end
+
+
+--==================================================
+-- LOAD LOCAL TRADE TARGET CACHE
+--==================================================
+
+local function LoadTradeTargetsFromLocal()
+
+    if not isfile
+        or not isfile(
+            TRADE_TARGET_CACHE
+        ) then
+
+        return false
+
+    end
+
+
+    local Success, Data =
+        pcall(function()
+
+            return HttpService:JSONDecode(
+                readfile(
+                    TRADE_TARGET_CACHE
+                )
+            )
+
+        end)
+
+
+    if not Success
+        or type(Data) ~= "table" then
+
+        return false
+
+    end
+
+
+    TradeTargets = {}
+
+    TradeTargetMap = {}
+
+
+    for _, Entry in ipairs(Data) do
+
+        local Username
+
+
+        if type(Entry) == "string" then
+
+            Username =
+                Entry
+
+        elseif type(Entry) == "table" then
+
+            Username =
+                Entry.username
+
+        end
+
+
+        if type(Username) == "string"
+            and Username ~= "" then
+
+            local Lower =
+                string.lower(
+                    Username
+                )
+
+
+            if not TradeTargetMap[Lower] then
+
+                TradeTargetMap[Lower] =
+                    true
+
+                table.insert(
+                    TradeTargets,
+                    Username
+                )
+
+            end
+
+        end
+
+    end
+
+
+    return #TradeTargets > 0
+
+end
+
+
+--==================================================
+-- LOAD GITHUB TARGETS
+--==================================================
+
+local function LoadTradeTargetsFromGitHub()
+
+    local HttpGet =
+        GetHttpGet()
+
+
+    if not HttpGet then
+
+        Log(
+            "HTTP GET NOT AVAILABLE"
+        )
+
+        return false
+
+    end
+
+
+    local Success, Raw =
+        pcall(function()
+
+            return HttpGet(
+                TRADE_TARGET_URL
+            )
+
+        end)
+
+
+    if not Success
+        or type(Raw) ~= "string"
+        or Raw == "" then
+
+        Log(
+            "GITHUB READ FAILED"
+        )
+
+        return false
+
+    end
+
+
+    local DecodeSuccess, Data =
+        pcall(function()
+
+            return HttpService:JSONDecode(
+                Raw
+            )
+
+        end)
+
+
+    if not DecodeSuccess
+        or type(Data) ~= "table" then
+
+        Log(
+            "GITHUB JSON INVALID"
+        )
+
+        return false
+
+    end
+
+
+    TradeTargets = {}
+
+    TradeTargetMap = {}
+
+
+    for _, Entry in ipairs(Data) do
+
+        if type(Entry) == "table" then
+
+            local Username =
+                Entry.username
+
+
+            if type(Username) == "string"
+                and Username ~= "" then
+
+                local Lower =
+                    string.lower(
+                        Username
+                    )
+
+
+                if not TradeTargetMap[Lower] then
+
+                    TradeTargetMap[Lower] =
+                        true
+
+                    table.insert(
+                        TradeTargets,
+                        Username
+                    )
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    SaveTradeTargetCache()
+
+
+    return #TradeTargets > 0
+
+end
+
+
+--==================================================
+-- REMOVE SELF FROM TARGETS
+--==================================================
+
+local function RemoveSelfFromTradeTargets()
+
+    local MyName =
+        string.lower(
+            LP.Name
+        )
+
+
+    local NewTargets = {}
+
+    local NewMap = {}
+
+
+    for _, Username in ipairs(
+        TradeTargets
+    ) do
+
+        if string.lower(
+            Username
+        ) ~= MyName then
+
+            table.insert(
+                NewTargets,
+                Username
+            )
+
+            NewMap[
+                string.lower(
+                    Username
+                )
+            ] = true
+
+        end
+
+    end
+
+
+    TradeTargets =
+        NewTargets
+
+    TradeTargetMap =
+        NewMap
+
+
+    SaveTradeTargetCache()
+
+end
+
+
+--==================================================
+-- LOAD TARGETS ONCE
+--==================================================
+
+local function LoadTradeTargets()
+
+    if TradeTargetLoaded then
+        return
+    end
+
+
+    TradeTargetLoaded =
+        true
+
+
+    Log(
+        "READ GITHUB TARGETS..."
+    )
+
+
+    local Loaded =
+        LoadTradeTargetsFromGitHub()
+
+
+    if not Loaded then
+
+        Log(
+            "GITHUB FAILED → USE LOCAL CACHE"
+        )
+
+
+        Loaded =
+            LoadTradeTargetsFromLocal()
+
+    end
+
+
+    if not Loaded then
+
+        Log(
+            "NO TRADE TARGET CACHE"
+        )
+
+        return
+
+    end
+
+
+    -- IMPORTANT:
+    -- REMOVE OUR OWN USERNAME
+    RemoveSelfFromTradeTargets()
+
+
+    Log(
+        "TRADE TARGET COUNT:",
+        #TradeTargets
+    )
+
+
+    for Index, Username in ipairs(
+        TradeTargets
+    ) do
+
+        Log(
+            "TARGET",
+            Index,
+            "→",
+            Username
+        )
+
+    end
+
+end
+
+
+--==================================================
+-- GET TARGET PERYTON COUNT
+--==================================================
+
+local function GetTargetPerytonCount(
+    Target
+)
 
     if not Target then
         return 0
@@ -4519,6 +4967,58 @@ local function GetTargetPerytonCount()
 
 
     return Count
+
+end
+
+
+--==================================================
+-- FIND VALID TRADE TARGET
+--==================================================
+
+local function GetValidTradeTarget()
+
+    local LocalPeryton =
+        GetLocalPerytonCount()
+
+
+    if LocalPeryton <= 12 then
+
+        return nil
+
+    end
+
+
+    for _, Username in ipairs(
+        TradeTargets
+    ) do
+
+        local Target =
+            Players:FindFirstChild(
+                Username
+            )
+
+
+        if Target
+            and Target ~= LP then
+
+            local TargetPeryton =
+                GetTargetPerytonCount(
+                    Target
+                )
+
+
+            if TargetPeryton < 12 then
+
+                return Target
+
+            end
+
+        end
+
+    end
+
+
+    return nil
 
 end
 
@@ -4597,36 +5097,15 @@ end
 
 local function ShouldTrade()
 
-    local Target =
-        GetTradeTarget()
-
-
-    if not Target then
-        return false
-    end
-
-
-    local TargetPeryton =
-        GetTargetPerytonCount()
-
-
-    local LocalPeryton =
-        GetLocalPerytonCount()
-
-
     return
-
-        TargetPeryton < 12
-
-        and
-
-        LocalPeryton > 12
+        GetValidTradeTarget()
+        ~= nil
 
 end
 
 
 --==================================================
--- TRADE REQUEST STATE
+-- TRADE REQUEST
 --==================================================
 
 local function StateTradeRequest()
@@ -4645,7 +5124,7 @@ local function StateTradeRequest()
     )
 
 
-    -- Stop active pets/tools first
+    -- STOP ALL STATE
     UnequipAllPets()
     UnequipAllTools()
 
@@ -4665,15 +5144,20 @@ local function StateTradeRequest()
     end
 
 
+    --==================================================
+    -- FIND VALID TARGET
+    --==================================================
+
     local Target =
-        GetTradeTarget()
+        GetValidTradeTarget()
 
 
     if not Target then
 
         Log(
-            "TRADE TARGET NOT FOUND"
+            "NO VALID TRADE TARGET"
         )
+
 
         TradeRunning =
             false
@@ -4683,13 +5167,34 @@ local function StateTradeRequest()
     end
 
 
-    -- Recheck condition
     local TargetPeryton =
-        GetTargetPerytonCount()
+        GetTargetPerytonCount(
+            Target
+        )
 
     local LocalPeryton =
         GetLocalPerytonCount()
 
+
+    Log(
+        "TRADE TARGET:",
+        Target.Name
+    )
+
+    Log(
+        "TARGET PERYTON:",
+        TargetPeryton
+    )
+
+    Log(
+        "LOCAL PERYTON:",
+        LocalPeryton
+    )
+
+
+    --==================================================
+    -- FINAL CONDITION
+    --==================================================
 
     if TargetPeryton >= 12
         or LocalPeryton <= 12 then
@@ -4790,6 +5295,7 @@ local function StateTradeRequest()
             "NO PERYTON"
         )
 
+
         UnequipAllTools()
 
         TradeRunning =
@@ -4859,6 +5365,12 @@ local function StateTradeRequest()
     end
 
 
+    Log(
+        "ADDED PERYTON:",
+        Added
+    )
+
+
     --==================================================
     -- ACCEPT
     --==================================================
@@ -4925,7 +5437,6 @@ local function StateTradeRequest()
     SetState(
         "RESUME"
     )
-
 
 end
 
@@ -5232,6 +5743,15 @@ end)
 
 
 --==================================================
+-- LOAD TRADE TARGETS
+-- IMPORTANT:
+-- DILAKUKAN 1x SAAT EXECUTE
+--==================================================
+
+LoadTradeTargets()
+
+
+--==================================================
 -- INITIAL GUI
 --==================================================
 
@@ -5261,13 +5781,23 @@ Log(
 )
 
 Log(
-    "TRADE TARGET:",
-    TRADE_PLAYER_NAME
+    "TRADE TARGETS:",
+    #TradeTargets
 )
 
 Log(
     "TRADE MAX:",
     TRADE_MAX_PERYTON
+)
+
+Log(
+    "GITHUB READ:",
+    "ONCE / EXECUTE"
+)
+
+Log(
+    "SELF EXCLUDED:",
+    LP.Name
 )
 
 Log(
