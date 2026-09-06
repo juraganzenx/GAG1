@@ -1,21 +1,27 @@
---//===============A===================================
---// AUTO HATCH SPRINGTIDE + AUTO SELL
+--//==================================================
+--// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
---// FEATURES
---// - AUTO PETLIST FROM PetRegistry.PetList
---// - SEARCH PET
---// - 4 COLUMN CONFIG
---// - BALD / MIMIC / PLACE EGG
---// - BRONTO / KOI / SEAL
---// - CONFIG SAVE
---// - ON/OFF SAVE
---// - SELECTED PET SAVE
---// - MINIMIZE
---// - STATE INDICATOR
---// - DRAG GUI
---// - LOG LIMIT
---// - 24/7 OPTIMIZED
+--// AUTO TRADE:
+--// TARGET PLAYER = RX6Z7P
+--// TARGET PERYTON < 12
+--// LOCAL PERYTON > 12
+--//
+--// TRADE FLOW:
+--// STOP ALL STATE
+--// -> EQUIP TRADING TICKET xN
+--// -> SEND REQUEST
+--// -> ADD MAX 12 PERYTON
+--// -> ACCEPT
+--// -> CONFIRM
+--// -> UNEQUIP ALL TOOLS
+--// -> RESUME AUTO HATCH
+--//
+--// TRADING TICKET:
+--// Trading Ticket x1
+--// Trading Ticket x12
+--// Trading Ticket x50
+--// dll tetap terdeteksi
 --//==================================================
 
 
@@ -35,6 +41,12 @@ local UIS =
 local HttpService =
     game:GetService("HttpService")
 
+local GuiService =
+    game:GetService("GuiService")
+
+local VirtualInputManager =
+    game:GetService("VirtualInputManager")
+
 
 local LP =
     Players.LocalPlayer
@@ -49,17 +61,70 @@ local Backpack =
 local GameEvents =
     RS:WaitForChild("GameEvents")
 
-
 local PetsService =
     GameEvents:WaitForChild("PetsService")
-
 
 local PetEggService =
     GameEvents:WaitForChild("PetEggService")
 
-
 local SellRemote =
     GameEvents:WaitForChild("SellPet_RE")
+
+
+--==================================================
+-- TRADE EVENTS
+--==================================================
+
+local TradeEvents =
+    GameEvents:WaitForChild(
+        "TradeEvents"
+    )
+
+local SendRequestEvent =
+    TradeEvents:WaitForChild(
+        "SendRequest"
+    )
+
+local AddItemEvent =
+    TradeEvents:WaitForChild(
+        "AddItem"
+    )
+
+local AcceptEvent =
+    TradeEvents:WaitForChild(
+        "Accept"
+    )
+
+local ConfirmEvent =
+    TradeEvents:WaitForChild(
+        "Confirm"
+    )
+
+
+--==================================================
+-- TRADE CONFIG
+--==================================================
+
+local TRADE_PLAYER_NAME =
+    "RX6Z7P"
+
+local TRADE_MAX_PERYTON =
+    12
+
+local TRADE_ADD_DELAY =
+    0.15
+
+local TRADE_ACCEPT_DELAY =
+    0.5
+
+local TRADE_CONFIRM_DELAY =
+    1
+
+local TRADE_REQUEST_DELAY =
+    1
+
+local TRADE_CHECK_DELAY =
+    1
 
 
 --==================================================
@@ -122,24 +187,35 @@ local DefaultConfig = {
 
 local Config = {}
 
-for Key, Value in pairs(DefaultConfig) do
-    Config[Key] = Value
+for Key, Value in pairs(
+    DefaultConfig
+) do
+
+    Config[Key] =
+        Value
+
 end
 
 
-local SavedData = nil
+local SavedData =
+    nil
 
 
 pcall(function()
 
-    if isfile and
-        isfile(SAVE_FILE) then
+    if isfile
+        and isfile(SAVE_FILE) then
 
         local Raw =
-            readfile(SAVE_FILE)
+            readfile(
+                SAVE_FILE
+            )
 
         SavedData =
-            HttpService:JSONDecode(Raw)
+            HttpService:JSONDecode(
+                Raw
+            )
+
     end
 
 end)
@@ -153,20 +229,23 @@ if type(SavedData) == "table" then
             SavedData.Config
         ) do
 
-            if
-                DefaultConfig[Key] ~= nil
-                and type(Value) == "number"
-            then
+            if DefaultConfig[Key] ~= nil
+                and type(Value) == "number" then
 
                 Config[Key] =
                     Value
+
             end
+
         end
+
     end
+
 end
 
 
-local Running = false
+local Running =
+    false
 
 
 if type(SavedData) == "table"
@@ -174,6 +253,7 @@ if type(SavedData) == "table"
 
     Running =
         SavedData.Running
+
 end
 
 
@@ -193,16 +273,34 @@ if type(SavedData) == "table"
                 SelectedPets,
                 Name
             )
+
         end
+
     end
+
 end
+
+
+--==================================================
+-- FLAGS
+--==================================================
+
+local TradeRunning =
+    false
+
+local MainLoopStarted =
+    false
+
+local CurrentState =
+    "IDLE"
 
 
 --==================================================
 -- SAVE FUNCTION
 --==================================================
 
-local SaveBusy = false
+local SaveBusy =
+    false
 
 
 local function SaveConfig()
@@ -211,9 +309,8 @@ local function SaveConfig()
         return
     end
 
-
-    SaveBusy = true
-
+    SaveBusy =
+        true
 
     task.defer(function()
 
@@ -223,25 +320,33 @@ local function SaveConfig()
 
                 local Data = {
 
-                    Config = Config,
+                    Config =
+                        Config,
 
-                    Running = Running,
+                    Running =
+                        Running,
 
                     SelectedPets =
                         SelectedPets
-                }
 
+                }
 
                 writefile(
                     SAVE_FILE,
-                    HttpService:JSONEncode(Data)
+                    HttpService:JSONEncode(
+                        Data
+                    )
                 )
+
             end
+
         end)
 
+        SaveBusy =
+            false
 
-        SaveBusy = false
     end)
+
 end
 
 
@@ -255,7 +360,9 @@ local function GetPetRegistryList()
 
 
     local Data =
-        RS:FindFirstChild("Data")
+        RS:FindFirstChild(
+            "Data"
+        )
 
     if not Data then
         return Result
@@ -263,7 +370,9 @@ local function GetPetRegistryList()
 
 
     local PetRegistry =
-        Data:FindFirstChild("PetRegistry")
+        Data:FindFirstChild(
+            "PetRegistry"
+        )
 
     if not PetRegistry then
         return Result
@@ -271,7 +380,9 @@ local function GetPetRegistryList()
 
 
     local PetList =
-        PetRegistry:FindFirstChild("PetList")
+        PetRegistry:FindFirstChild(
+            "PetList"
+        )
 
     if not PetList then
         return Result
@@ -281,13 +392,17 @@ local function GetPetRegistryList()
     if PetList:IsA("ModuleScript") then
 
         local Success, Module =
-            pcall(require, PetList)
-
+            pcall(
+                require,
+                PetList
+            )
 
         if Success
             and type(Module) == "table" then
 
-            for Name, Value in pairs(Module) do
+            for Name, Value in pairs(
+                Module
+            ) do
 
                 if type(Name) == "string" then
 
@@ -302,8 +417,11 @@ local function GetPetRegistryList()
                         Result,
                         Value
                     )
+
                 end
+
             end
+
         end
 
     else
@@ -316,7 +434,9 @@ local function GetPetRegistryList()
                 Result,
                 Object.Name
             )
+
         end
+
     end
 
 
@@ -332,6 +452,7 @@ local function GetPetRegistryList()
 
 
     return Result
+
 end
 
 
@@ -359,20 +480,18 @@ end
 --==================================================
 
 local ScreenGui =
-    Instance.new("ScreenGui")
-
+    Instance.new(
+        "ScreenGui"
+    )
 
 ScreenGui.Name =
     "AutoHatchLog"
 
-
 ScreenGui.ResetOnSpawn =
     false
 
-
 ScreenGui.ZIndexBehavior =
     Enum.ZIndexBehavior.Sibling
-
 
 ScreenGui.Parent =
     PG
@@ -383,8 +502,9 @@ ScreenGui.Parent =
 --==================================================
 
 local Main =
-    Instance.new("Frame")
-
+    Instance.new(
+        "Frame"
+    )
 
 Main.Size =
     UDim2.new(
@@ -394,7 +514,6 @@ Main.Size =
         430
     )
 
-
 Main.Position =
     UDim2.new(
         0,
@@ -403,7 +522,6 @@ Main.Position =
         80
     )
 
-
 Main.BackgroundColor3 =
     Color3.fromRGB(
         20,
@@ -411,25 +529,23 @@ Main.BackgroundColor3 =
         20
     )
 
-
 Main.BorderSizePixel =
     0
-
 
 Main.Parent =
     ScreenGui
 
 
 local MainCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 MainCorner.CornerRadius =
     UDim.new(
         0,
         7
     )
-
 
 MainCorner.Parent =
     Main
@@ -440,8 +556,9 @@ MainCorner.Parent =
 --==================================================
 
 local Header =
-    Instance.new("Frame")
-
+    Instance.new(
+        "Frame"
+    )
 
 Header.Size =
     UDim2.new(
@@ -451,7 +568,6 @@ Header.Size =
         30
     )
 
-
 Header.BackgroundColor3 =
     Color3.fromRGB(
         30,
@@ -459,25 +575,23 @@ Header.BackgroundColor3 =
         30
     )
 
-
 Header.BorderSizePixel =
     0
-
 
 Header.Parent =
     Main
 
 
 local HeaderCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 HeaderCorner.CornerRadius =
     UDim.new(
         0,
         7
     )
-
 
 HeaderCorner.Parent =
     Header
@@ -488,8 +602,9 @@ HeaderCorner.Parent =
 --==================================================
 
 local Title =
-    Instance.new("TextLabel")
-
+    Instance.new(
+        "TextLabel"
+    )
 
 Title.Size =
     UDim2.new(
@@ -499,7 +614,6 @@ Title.Size =
         0
     )
 
-
 Title.Position =
     UDim2.new(
         0,
@@ -508,14 +622,11 @@ Title.Position =
         0
     )
 
-
 Title.BackgroundTransparency =
     1
 
-
 Title.Text =
     "AUTO HATCH"
-
 
 Title.TextColor3 =
     Color3.fromRGB(
@@ -524,18 +635,14 @@ Title.TextColor3 =
         255
     )
 
-
 Title.TextSize =
     11
-
 
 Title.Font =
     Enum.Font.GothamBold
 
-
 Title.TextXAlignment =
     Enum.TextXAlignment.Left
-
 
 Title.Parent =
     Header
@@ -546,8 +653,9 @@ Title.Parent =
 --==================================================
 
 local StateLabel =
-    Instance.new("TextLabel")
-
+    Instance.new(
+        "TextLabel"
+    )
 
 StateLabel.Size =
     UDim2.new(
@@ -557,7 +665,6 @@ StateLabel.Size =
         0
     )
 
-
 StateLabel.Position =
     UDim2.new(
         0,
@@ -566,14 +673,11 @@ StateLabel.Position =
         0
     )
 
-
 StateLabel.BackgroundTransparency =
     1
 
-
 StateLabel.Text =
     "IDLE"
-
 
 StateLabel.TextColor3 =
     Color3.fromRGB(
@@ -582,18 +686,14 @@ StateLabel.TextColor3 =
         180
     )
 
-
 StateLabel.TextSize =
     9
-
 
 StateLabel.Font =
     Enum.Font.GothamBold
 
-
 StateLabel.TextXAlignment =
     Enum.TextXAlignment.Center
-
 
 StateLabel.Parent =
     Header
@@ -604,8 +704,9 @@ StateLabel.Parent =
 --==================================================
 
 local Toggle =
-    Instance.new("TextButton")
-
+    Instance.new(
+        "TextButton"
+    )
 
 Toggle.Size =
     UDim2.new(
@@ -615,7 +716,6 @@ Toggle.Size =
         21
     )
 
-
 Toggle.Position =
     UDim2.new(
         1,
@@ -624,7 +724,6 @@ Toggle.Position =
         4
     )
 
-
 Toggle.BackgroundColor3 =
     Color3.fromRGB(
         100,
@@ -632,13 +731,10 @@ Toggle.BackgroundColor3 =
         40
     )
 
-
 Toggle.Text =
-    Running and
-    "ON"
-    or
-    "OFF"
-
+    Running
+        and "ON"
+        or "OFF"
 
 Toggle.TextColor3 =
     Color3.fromRGB(
@@ -647,33 +743,29 @@ Toggle.TextColor3 =
         255
     )
 
-
 Toggle.TextSize =
     9
-
 
 Toggle.Font =
     Enum.Font.GothamBold
 
-
 Toggle.BorderSizePixel =
     0
-
 
 Toggle.Parent =
     Header
 
 
 local ToggleCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 ToggleCorner.CornerRadius =
     UDim.new(
         0,
         4
     )
-
 
 ToggleCorner.Parent =
     Toggle
@@ -684,8 +776,9 @@ ToggleCorner.Parent =
 --==================================================
 
 local Minimize =
-    Instance.new("TextButton")
-
+    Instance.new(
+        "TextButton"
+    )
 
 Minimize.Size =
     UDim2.new(
@@ -695,7 +788,6 @@ Minimize.Size =
         21
     )
 
-
 Minimize.Position =
     UDim2.new(
         1,
@@ -704,7 +796,6 @@ Minimize.Position =
         4
     )
 
-
 Minimize.BackgroundColor3 =
     Color3.fromRGB(
         55,
@@ -712,10 +803,8 @@ Minimize.BackgroundColor3 =
         55
     )
 
-
 Minimize.Text =
     "−"
-
 
 Minimize.TextColor3 =
     Color3.fromRGB(
@@ -724,33 +813,29 @@ Minimize.TextColor3 =
         255
     )
 
-
 Minimize.TextSize =
     14
-
 
 Minimize.Font =
     Enum.Font.GothamBold
 
-
 Minimize.BorderSizePixel =
     0
-
 
 Minimize.Parent =
     Header
 
 
 local MinCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 MinCorner.CornerRadius =
     UDim.new(
         0,
         4
     )
-
 
 MinCorner.Parent =
     Minimize
@@ -761,8 +846,9 @@ MinCorner.Parent =
 --==================================================
 
 local ConfigFrame =
-    Instance.new("Frame")
-
+    Instance.new(
+        "Frame"
+    )
 
 ConfigFrame.Size =
     UDim2.new(
@@ -772,7 +858,6 @@ ConfigFrame.Size =
         115
     )
 
-
 ConfigFrame.Position =
     UDim2.new(
         0,
@@ -781,7 +866,6 @@ ConfigFrame.Position =
         35
     )
 
-
 ConfigFrame.BackgroundColor3 =
     Color3.fromRGB(
         25,
@@ -789,25 +873,23 @@ ConfigFrame.BackgroundColor3 =
         25
     )
 
-
 ConfigFrame.BorderSizePixel =
     0
-
 
 ConfigFrame.Parent =
     Main
 
 
 local ConfigCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 ConfigCorner.CornerRadius =
     UDim.new(
         0,
         5
     )
-
 
 ConfigCorner.Parent =
     ConfigFrame
@@ -823,8 +905,9 @@ local Columns = {}
 for i = 1, 4 do
 
     local Column =
-        Instance.new("Frame")
-
+        Instance.new(
+            "Frame"
+        )
 
     Column.Size =
         UDim2.new(
@@ -834,7 +917,6 @@ for i = 1, 4 do
             -6
         )
 
-
     Column.Position =
         UDim2.new(
             (i - 1) * 0.25,
@@ -843,17 +925,15 @@ for i = 1, 4 do
             3
         )
 
-
     Column.BackgroundTransparency =
         1
-
 
     Column.Parent =
         ConfigFrame
 
-
     Columns[i] =
         Column
+
 end
 
 
@@ -868,8 +948,9 @@ local function CreateConfigBox(
 )
 
     local Frame =
-        Instance.new("Frame")
-
+        Instance.new(
+            "Frame"
+        )
 
     Frame.Size =
         UDim2.new(
@@ -879,7 +960,6 @@ local function CreateConfigBox(
             31
         )
 
-
     Frame.Position =
         UDim2.new(
             0,
@@ -888,7 +968,6 @@ local function CreateConfigBox(
             (Order - 1) * 34
         )
 
-
     Frame.BackgroundColor3 =
         Color3.fromRGB(
             35,
@@ -896,18 +975,17 @@ local function CreateConfigBox(
             35
         )
 
-
     Frame.BorderSizePixel =
         0
-
 
     Frame.Parent =
         Parent
 
 
     local Corner =
-        Instance.new("UICorner")
-
+        Instance.new(
+            "UICorner"
+        )
 
     Corner.CornerRadius =
         UDim.new(
@@ -915,14 +993,14 @@ local function CreateConfigBox(
             4
         )
 
-
     Corner.Parent =
         Frame
 
 
     local Label =
-        Instance.new("TextLabel")
-
+        Instance.new(
+            "TextLabel"
+        )
 
     Label.Size =
         UDim2.new(
@@ -932,7 +1010,6 @@ local function CreateConfigBox(
             13
         )
 
-
     Label.Position =
         UDim2.new(
             0,
@@ -941,14 +1018,11 @@ local function CreateConfigBox(
             2
         )
 
-
     Label.BackgroundTransparency =
         1
 
-
     Label.Text =
         DisplayName
-
 
     Label.TextColor3 =
         Color3.fromRGB(
@@ -957,26 +1031,23 @@ local function CreateConfigBox(
             175
         )
 
-
     Label.TextSize =
         8
-
 
     Label.Font =
         Enum.Font.Gotham
 
-
     Label.TextXAlignment =
         Enum.TextXAlignment.Left
-
 
     Label.Parent =
         Frame
 
 
     local Box =
-        Instance.new("TextBox")
-
+        Instance.new(
+            "TextBox"
+        )
 
     Box.Size =
         UDim2.new(
@@ -986,7 +1057,6 @@ local function CreateConfigBox(
             14
         )
 
-
     Box.Position =
         UDim2.new(
             0,
@@ -995,14 +1065,12 @@ local function CreateConfigBox(
             15
         )
 
-
     Box.BackgroundColor3 =
         Color3.fromRGB(
             15,
             15,
             15
         )
-
 
     Box.TextColor3 =
         Color3.fromRGB(
@@ -1011,43 +1079,37 @@ local function CreateConfigBox(
             255
         )
 
-
     Box.Text =
         tostring(
             Config[Key]
         )
 
-
     Box.TextSize =
         8
-
 
     Box.Font =
         Enum.Font.GothamBold
 
-
     Box.ClearTextOnFocus =
         false
 
-
     Box.BorderSizePixel =
         0
-
 
     Box.Parent =
         Frame
 
 
     local BoxCorner =
-        Instance.new("UICorner")
-
+        Instance.new(
+            "UICorner"
+        )
 
     BoxCorner.CornerRadius =
         UDim.new(
             0,
             3
         )
-
 
     BoxCorner.Parent =
         Box
@@ -1064,7 +1126,6 @@ local function CreateConfigBox(
                 Box.Text
             )
 
-
         if Number == nil then
 
             Box.Text =
@@ -1073,6 +1134,7 @@ local function CreateConfigBox(
                 )
 
             return
+
         end
 
 
@@ -1094,6 +1156,7 @@ local function CreateConfigBox(
         SaveConfig()
 
     end)
+
 end
 
 
@@ -1108,14 +1171,12 @@ CreateConfigBox(
     1
 )
 
-
 CreateConfigBox(
     Columns[1],
     "EQUIP_DELAY",
     "Equip Pet Delay",
     2
 )
-
 
 CreateConfigBox(
     Columns[1],
@@ -1136,14 +1197,12 @@ CreateConfigBox(
     1
 )
 
-
 CreateConfigBox(
     Columns[2],
     "MAX_EGG",
     "Max Egg",
     2
 )
-
 
 CreateConfigBox(
     Columns[2],
@@ -1164,14 +1223,12 @@ CreateConfigBox(
     1
 )
 
-
 CreateConfigBox(
     Columns[3],
     "MIMIC_TARGET",
     "Mimic Target",
     2
 )
-
 
 CreateConfigBox(
     Columns[3],
@@ -1192,14 +1249,12 @@ CreateConfigBox(
     1
 )
 
-
 CreateConfigBox(
     Columns[4],
     "KOI_TARGET",
     "Koi Target",
     2
 )
-
 
 CreateConfigBox(
     Columns[4],
@@ -1214,8 +1269,9 @@ CreateConfigBox(
 --==================================================
 
 local PetSelector =
-    Instance.new("Frame")
-
+    Instance.new(
+        "Frame"
+    )
 
 PetSelector.Size =
     UDim2.new(
@@ -1225,7 +1281,6 @@ PetSelector.Size =
         65
     )
 
-
 PetSelector.Position =
     UDim2.new(
         0,
@@ -1234,7 +1289,6 @@ PetSelector.Position =
         155
     )
 
-
 PetSelector.BackgroundColor3 =
     Color3.fromRGB(
         25,
@@ -1242,25 +1296,23 @@ PetSelector.BackgroundColor3 =
         25
     )
 
-
 PetSelector.BorderSizePixel =
     0
-
 
 PetSelector.Parent =
     Main
 
 
 local PetSelectorCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 PetSelectorCorner.CornerRadius =
     UDim.new(
         0,
         5
     )
-
 
 PetSelectorCorner.Parent =
     PetSelector
@@ -1271,8 +1323,9 @@ PetSelectorCorner.Parent =
 --==================================================
 
 local SearchBox =
-    Instance.new("TextBox")
-
+    Instance.new(
+        "TextBox"
+    )
 
 SearchBox.Size =
     UDim2.new(
@@ -1282,7 +1335,6 @@ SearchBox.Size =
         25
     )
 
-
 SearchBox.Position =
     UDim2.new(
         0,
@@ -1291,7 +1343,6 @@ SearchBox.Position =
         5
     )
 
-
 SearchBox.BackgroundColor3 =
     Color3.fromRGB(
         40,
@@ -1299,14 +1350,11 @@ SearchBox.BackgroundColor3 =
         40
     )
 
-
 SearchBox.Text =
     "SELECT PET / SEARCH"
 
-
 SearchBox.PlaceholderText =
     "Search pet..."
-
 
 SearchBox.TextColor3 =
     Color3.fromRGB(
@@ -1315,7 +1363,6 @@ SearchBox.TextColor3 =
         255
     )
 
-
 SearchBox.PlaceholderColor3 =
     Color3.fromRGB(
         130,
@@ -1323,37 +1370,32 @@ SearchBox.PlaceholderColor3 =
         130
     )
 
-
 SearchBox.TextSize =
     9
-
 
 SearchBox.Font =
     Enum.Font.GothamBold
 
-
 SearchBox.ClearTextOnFocus =
     true
 
-
 SearchBox.BorderSizePixel =
     0
-
 
 SearchBox.Parent =
     PetSelector
 
 
 local SearchCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 SearchCorner.CornerRadius =
     UDim.new(
         0,
         4
     )
-
 
 SearchCorner.Parent =
     SearchBox
@@ -1364,8 +1406,9 @@ SearchCorner.Parent =
 --==================================================
 
 local AddButton =
-    Instance.new("TextButton")
-
+    Instance.new(
+        "TextButton"
+    )
 
 AddButton.Size =
     UDim2.new(
@@ -1375,7 +1418,6 @@ AddButton.Size =
         25
     )
 
-
 AddButton.Position =
     UDim2.new(
         1,
@@ -1384,7 +1426,6 @@ AddButton.Position =
         5
     )
 
-
 AddButton.BackgroundColor3 =
     Color3.fromRGB(
         40,
@@ -1392,10 +1433,8 @@ AddButton.BackgroundColor3 =
         60
     )
 
-
 AddButton.Text =
     "ADD"
-
 
 AddButton.TextColor3 =
     Color3.fromRGB(
@@ -1404,26 +1443,23 @@ AddButton.TextColor3 =
         255
     )
 
-
 AddButton.TextSize =
     9
-
 
 AddButton.Font =
     Enum.Font.GothamBold
 
-
 AddButton.BorderSizePixel =
     0
-
 
 AddButton.Parent =
     PetSelector
 
 
 local AddCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 AddCorner.CornerRadius =
     UDim.new(
@@ -1431,18 +1467,18 @@ AddCorner.CornerRadius =
         4
     )
 
-
 AddCorner.Parent =
     AddButton
 
 
 --==================================================
--- DROPDOWN RESULT
+-- DROPDOWN
 --==================================================
 
 local DropdownList =
-    Instance.new("ScrollingFrame")
-
+    Instance.new(
+        "ScrollingFrame"
+    )
 
 DropdownList.Size =
     UDim2.new(
@@ -1452,7 +1488,6 @@ DropdownList.Size =
         100
     )
 
-
 DropdownList.Position =
     UDim2.new(
         0,
@@ -1461,7 +1496,6 @@ DropdownList.Position =
         32
     )
 
-
 DropdownList.BackgroundColor3 =
     Color3.fromRGB(
         12,
@@ -1469,22 +1503,17 @@ DropdownList.BackgroundColor3 =
         12
     )
 
-
 DropdownList.BorderSizePixel =
     0
-
 
 DropdownList.ScrollBarThickness =
     3
 
-
 DropdownList.Visible =
     false
 
-
 DropdownList.ZIndex =
     50
-
 
 DropdownList.CanvasSize =
     UDim2.new(
@@ -1494,21 +1523,20 @@ DropdownList.CanvasSize =
         0
     )
 
-
 DropdownList.Parent =
     PetSelector
 
 
 local DropdownLayout =
-    Instance.new("UIListLayout")
-
+    Instance.new(
+        "UIListLayout"
+    )
 
 DropdownLayout.Padding =
     UDim.new(
         0,
         2
     )
-
 
 DropdownLayout.Parent =
     DropdownList
@@ -1519,8 +1547,9 @@ DropdownLayout.Parent =
 --==================================================
 
 local SelectedTitle =
-    Instance.new("TextLabel")
-
+    Instance.new(
+        "TextLabel"
+    )
 
 SelectedTitle.Size =
     UDim2.new(
@@ -1530,7 +1559,6 @@ SelectedTitle.Size =
         15
     )
 
-
 SelectedTitle.Position =
     UDim2.new(
         0,
@@ -1539,14 +1567,11 @@ SelectedTitle.Position =
         225
     )
 
-
 SelectedTitle.BackgroundTransparency =
     1
 
-
 SelectedTitle.Text =
     "COUNT + SELL PET"
-
 
 SelectedTitle.TextColor3 =
     Color3.fromRGB(
@@ -1555,18 +1580,14 @@ SelectedTitle.TextColor3 =
         180
     )
 
-
 SelectedTitle.TextSize =
     8
-
 
 SelectedTitle.Font =
     Enum.Font.GothamBold
 
-
 SelectedTitle.TextXAlignment =
     Enum.TextXAlignment.Left
-
 
 SelectedTitle.Parent =
     Main
@@ -1577,8 +1598,9 @@ SelectedTitle.Parent =
 --==================================================
 
 local TargetCountLabel =
-    Instance.new("TextLabel")
-
+    Instance.new(
+        "TextLabel"
+    )
 
 TargetCountLabel.Size =
     UDim2.new(
@@ -1588,7 +1610,6 @@ TargetCountLabel.Size =
         15
     )
 
-
 TargetCountLabel.Position =
     UDim2.new(
         1,
@@ -1597,14 +1618,11 @@ TargetCountLabel.Position =
         225
     )
 
-
 TargetCountLabel.BackgroundTransparency =
     1
 
-
 TargetCountLabel.Text =
     "TARGET: 0"
-
 
 TargetCountLabel.TextColor3 =
     Color3.fromRGB(
@@ -1613,18 +1631,14 @@ TargetCountLabel.TextColor3 =
         140
     )
 
-
 TargetCountLabel.TextSize =
     8
-
 
 TargetCountLabel.Font =
     Enum.Font.GothamBold
 
-
 TargetCountLabel.TextXAlignment =
     Enum.TextXAlignment.Right
-
 
 TargetCountLabel.Parent =
     Main
@@ -1635,8 +1649,9 @@ TargetCountLabel.Parent =
 --==================================================
 
 local SelectedFrame =
-    Instance.new("ScrollingFrame")
-
+    Instance.new(
+        "ScrollingFrame"
+    )
 
 SelectedFrame.Size =
     UDim2.new(
@@ -1646,7 +1661,6 @@ SelectedFrame.Size =
         75
     )
 
-
 SelectedFrame.Position =
     UDim2.new(
         0,
@@ -1655,7 +1669,6 @@ SelectedFrame.Position =
         242
     )
 
-
 SelectedFrame.BackgroundColor3 =
     Color3.fromRGB(
         12,
@@ -1663,14 +1676,11 @@ SelectedFrame.BackgroundColor3 =
         12
     )
 
-
 SelectedFrame.BorderSizePixel =
     0
 
-
 SelectedFrame.ScrollBarThickness =
     3
-
 
 SelectedFrame.CanvasSize =
     UDim2.new(
@@ -1680,14 +1690,14 @@ SelectedFrame.CanvasSize =
         0
     )
 
-
 SelectedFrame.Parent =
     Main
 
 
 local SelectedCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 SelectedCorner.CornerRadius =
     UDim.new(
@@ -1695,21 +1705,20 @@ SelectedCorner.CornerRadius =
         5
     )
 
-
 SelectedCorner.Parent =
     SelectedFrame
 
 
 local SelectedLayout =
-    Instance.new("UIListLayout")
-
+    Instance.new(
+        "UIListLayout"
+    )
 
 SelectedLayout.Padding =
     UDim.new(
         0,
         2
     )
-
 
 SelectedLayout.Parent =
     SelectedFrame
@@ -1720,8 +1729,9 @@ SelectedLayout.Parent =
 --==================================================
 
 local LogFrame =
-    Instance.new("Frame")
-
+    Instance.new(
+        "Frame"
+    )
 
 LogFrame.Size =
     UDim2.new(
@@ -1731,7 +1741,6 @@ LogFrame.Size =
         105
     )
 
-
 LogFrame.Position =
     UDim2.new(
         0,
@@ -1740,7 +1749,6 @@ LogFrame.Position =
         320
     )
 
-
 LogFrame.BackgroundColor3 =
     Color3.fromRGB(
         12,
@@ -1748,18 +1756,17 @@ LogFrame.BackgroundColor3 =
         12
     )
 
-
 LogFrame.BorderSizePixel =
     0
-
 
 LogFrame.Parent =
     Main
 
 
 local LogCorner =
-    Instance.new("UICorner")
-
+    Instance.new(
+        "UICorner"
+    )
 
 LogCorner.CornerRadius =
     UDim.new(
@@ -1767,14 +1774,14 @@ LogCorner.CornerRadius =
         5
     )
 
-
 LogCorner.Parent =
     LogFrame
 
 
 local Scroll =
-    Instance.new("ScrollingFrame")
-
+    Instance.new(
+        "ScrollingFrame"
+    )
 
 Scroll.Size =
     UDim2.new(
@@ -1784,7 +1791,6 @@ Scroll.Size =
         -8
     )
 
-
 Scroll.Position =
     UDim2.new(
         0,
@@ -1793,18 +1799,14 @@ Scroll.Position =
         4
     )
 
-
 Scroll.BackgroundTransparency =
     1
-
 
 Scroll.BorderSizePixel =
     0
 
-
 Scroll.ScrollBarThickness =
     3
-
 
 Scroll.CanvasSize =
     UDim2.new(
@@ -1814,14 +1816,14 @@ Scroll.CanvasSize =
         0
     )
 
-
 Scroll.Parent =
     LogFrame
 
 
 local Layout =
-    Instance.new("UIListLayout")
-
+    Instance.new(
+        "UIListLayout"
+    )
 
 Layout.Padding =
     UDim.new(
@@ -1829,25 +1831,21 @@ Layout.Padding =
         1
     )
 
-
 Layout.Parent =
     Scroll
 
 
 --==================================================
--- LOG OPTIMIZATION
+-- LOG
 --==================================================
 
 local MAX_LOGS =
     40
 
-
 local LogObjects = {}
-
 
 local LastLog =
     ""
-
 
 local LastLogTime =
     0
@@ -1858,22 +1856,17 @@ local function Log(...)
     local Args =
         {...}
 
-
     local Message =
         ""
-
 
     for i, Value in ipairs(
         Args
     ) do
 
         if i > 1 then
-
             Message =
                 Message .. " "
-
         end
-
 
         Message =
             Message .. tostring(Value)
@@ -1885,17 +1878,16 @@ local function Log(...)
         os.clock()
 
 
-    -- Prevent identical spam
     if Message == LastLog
         and Now - LastLogTime < 1 then
 
         return
+
     end
 
 
     LastLog =
         Message
-
 
     LastLogTime =
         Now
@@ -1908,8 +1900,9 @@ local function Log(...)
 
 
     local Label =
-        Instance.new("TextLabel")
-
+        Instance.new(
+            "TextLabel"
+        )
 
     Label.Size =
         UDim2.new(
@@ -1919,14 +1912,11 @@ local function Log(...)
             14
         )
 
-
     Label.BackgroundTransparency =
         1
 
-
     Label.Text =
         Message
-
 
     Label.TextColor3 =
         Color3.fromRGB(
@@ -1935,18 +1925,14 @@ local function Log(...)
             205
         )
 
-
     Label.TextSize =
         8
-
 
     Label.Font =
         Enum.Font.Code
 
-
     Label.TextXAlignment =
         Enum.TextXAlignment.Left
-
 
     Label.Parent =
         Scroll
@@ -1966,7 +1952,6 @@ local function Log(...)
                 1
             )
 
-
         if Old then
             Old:Destroy()
         end
@@ -1982,9 +1967,8 @@ local function Log(...)
                 0,
                 0,
                 Layout.AbsoluteContentSize.Y
-                + 5
+                    + 5
             )
-
 
         Scroll.CanvasPosition =
             Vector2.new(
@@ -1992,7 +1976,7 @@ local function Log(...)
                 math.max(
                     0,
                     Layout.AbsoluteContentSize.Y
-                    - Scroll.AbsoluteSize.Y
+                        - Scroll.AbsoluteSize.Y
                 )
             )
 
@@ -2005,24 +1989,17 @@ end
 -- STATE
 --==================================================
 
-local CurrentState =
-    "IDLE"
-
-
 local function SetState(State)
 
     if CurrentState == State then
         return
     end
 
-
     CurrentState =
         State
 
-
     StateLabel.Text =
         State
-
 
     Log(
         "STATE →",
@@ -2043,7 +2020,6 @@ local function UpdateToggle()
         Toggle.Text =
             "ON"
 
-
         Toggle.BackgroundColor3 =
             Color3.fromRGB(
                 40,
@@ -2055,7 +2031,6 @@ local function UpdateToggle()
 
         Toggle.Text =
             "OFF"
-
 
         Toggle.BackgroundColor3 =
             Color3.fromRGB(
@@ -2109,64 +2084,49 @@ Minimize.MouseButton1Click:Connect(function()
         Main.Size =
             MiniSize
 
-
         ConfigFrame.Visible =
             false
-
 
         PetSelector.Visible =
             false
 
-
         SelectedTitle.Visible =
             false
-
 
         TargetCountLabel.Visible =
             false
 
-
         SelectedFrame.Visible =
             false
-
 
         LogFrame.Visible =
             false
 
-
         Minimize.Text =
             "+"
-
 
     else
 
         Main.Size =
             NormalSize
 
-
         ConfigFrame.Visible =
             true
-
 
         PetSelector.Visible =
             true
 
-
         SelectedTitle.Visible =
             true
-
 
         TargetCountLabel.Visible =
             true
 
-
         SelectedFrame.Visible =
             true
 
-
         LogFrame.Visible =
             true
-
 
         Minimize.Text =
             "−"
@@ -2183,10 +2143,8 @@ end)
 local Dragging =
     false
 
-
 local DragStart =
     nil
-
 
 local StartPos =
     nil
@@ -2200,10 +2158,8 @@ Header.InputBegan:Connect(function(Input)
         Dragging =
             true
 
-
         DragStart =
             Input.Position
-
 
         StartPos =
             Main.Position
@@ -2232,18 +2188,18 @@ UIS.InputChanged:Connect(function(Input)
         return
     end
 
-
     if Input.UserInputType ~=
         Enum.UserInputType.MouseMovement then
 
         return
-    end
 
+    end
 
     if not DragStart
         or not StartPos then
 
         return
+
     end
 
 
@@ -2258,12 +2214,12 @@ UIS.InputChanged:Connect(function(Input)
             StartPos.X.Scale,
 
             StartPos.X.Offset
-            + Delta.X,
+                + Delta.X,
 
             StartPos.Y.Scale,
 
             StartPos.Y.Offset
-            + Delta.Y
+                + Delta.Y
 
         )
 
@@ -2271,7 +2227,7 @@ end)
 
 
 --==================================================
--- UPDATE SELECTED PET
+-- SELECTED PET
 --==================================================
 
 local function IsSelected(PetName)
@@ -2286,8 +2242,8 @@ local function IsSelected(PetName)
 
     end
 
-
     return false
+
 end
 
 
@@ -2298,9 +2254,7 @@ local function UpdateSelectedPets()
     ) do
 
         if Object:IsA("Frame") then
-
             Object:Destroy()
-
         end
 
     end
@@ -2311,8 +2265,9 @@ local function UpdateSelectedPets()
     ) do
 
         local Row =
-            Instance.new("Frame")
-
+            Instance.new(
+                "Frame"
+            )
 
         Row.Size =
             UDim2.new(
@@ -2322,7 +2277,6 @@ local function UpdateSelectedPets()
                 20
             )
 
-
         Row.BackgroundColor3 =
             Color3.fromRGB(
                 30,
@@ -2330,18 +2284,17 @@ local function UpdateSelectedPets()
                 30
             )
 
-
         Row.BorderSizePixel =
             0
-
 
         Row.Parent =
             SelectedFrame
 
 
         local NameLabel =
-            Instance.new("TextLabel")
-
+            Instance.new(
+                "TextLabel"
+            )
 
         NameLabel.Size =
             UDim2.new(
@@ -2351,7 +2304,6 @@ local function UpdateSelectedPets()
                 0
             )
 
-
         NameLabel.Position =
             UDim2.new(
                 0,
@@ -2360,14 +2312,11 @@ local function UpdateSelectedPets()
                 0
             )
 
-
         NameLabel.BackgroundTransparency =
             1
 
-
         NameLabel.Text =
             "• " .. PetName
-
 
         NameLabel.TextColor3 =
             Color3.fromRGB(
@@ -2376,26 +2325,23 @@ local function UpdateSelectedPets()
                 230
             )
 
-
         NameLabel.TextSize =
             8
-
 
         NameLabel.Font =
             Enum.Font.Gotham
 
-
         NameLabel.TextXAlignment =
             Enum.TextXAlignment.Left
-
 
         NameLabel.Parent =
             Row
 
 
         local Remove =
-            Instance.new("TextButton")
-
+            Instance.new(
+                "TextButton"
+            )
 
         Remove.Size =
             UDim2.new(
@@ -2405,7 +2351,6 @@ local function UpdateSelectedPets()
                 16
             )
 
-
         Remove.Position =
             UDim2.new(
                 1,
@@ -2414,7 +2359,6 @@ local function UpdateSelectedPets()
                 -8
             )
 
-
         Remove.BackgroundColor3 =
             Color3.fromRGB(
                 120,
@@ -2422,10 +2366,8 @@ local function UpdateSelectedPets()
                 40
             )
 
-
         Remove.Text =
             "X"
-
 
         Remove.TextColor3 =
             Color3.fromRGB(
@@ -2434,18 +2376,14 @@ local function UpdateSelectedPets()
                 255
             )
 
-
         Remove.TextSize =
             8
-
 
         Remove.Font =
             Enum.Font.GothamBold
 
-
         Remove.BorderSizePixel =
             0
-
 
         Remove.Parent =
             Row
@@ -2473,7 +2411,6 @@ local function UpdateSelectedPets()
 
             SaveConfig()
 
-
             UpdateSelectedPets()
 
         end)
@@ -2488,8 +2425,8 @@ local function UpdateSelectedPets()
                 0,
                 0,
                 0,
-                Layout.AbsoluteContentSize.Y
-                + 5
+                SelectedLayout.AbsoluteContentSize.Y
+                    + 5
             )
 
     end)
@@ -2498,7 +2435,7 @@ end
 
 
 --==================================================
--- BUILD SEARCH RESULT
+-- SEARCH
 --==================================================
 
 local function BuildSearchResults(Search)
@@ -2508,9 +2445,7 @@ local function BuildSearchResults(Search)
     ) do
 
         if Object:IsA("TextButton") then
-
             Object:Destroy()
-
         end
 
     end
@@ -2539,8 +2474,9 @@ local function BuildSearchResults(Search)
             ) then
 
             local Button =
-                Instance.new("TextButton")
-
+                Instance.new(
+                    "TextButton"
+                )
 
             Button.Size =
                 UDim2.new(
@@ -2550,7 +2486,6 @@ local function BuildSearchResults(Search)
                     20
                 )
 
-
             Button.BackgroundColor3 =
                 Color3.fromRGB(
                     35,
@@ -2558,10 +2493,8 @@ local function BuildSearchResults(Search)
                     35
                 )
 
-
             Button.Text =
                 PetName
-
 
             Button.TextColor3 =
                 Color3.fromRGB(
@@ -2570,41 +2503,35 @@ local function BuildSearchResults(Search)
                     230
                 )
 
-
             Button.TextSize =
                 8
-
 
             Button.Font =
                 Enum.Font.Gotham
 
-
             Button.TextXAlignment =
                 Enum.TextXAlignment.Left
-
 
             Button.BorderSizePixel =
                 0
 
-
             Button.ZIndex =
                 51
-
 
             Button.Parent =
                 DropdownList
 
 
             local Padding =
-                Instance.new("UIPadding")
-
+                Instance.new(
+                    "UIPadding"
+                )
 
             Padding.PaddingLeft =
                 UDim.new(
                     0,
                     6
                 )
-
 
             Padding.Parent =
                 Button
@@ -2615,14 +2542,14 @@ local function BuildSearchResults(Search)
                 SearchBox.Text =
                     PetName
 
-
                 DropdownList.Visible =
                     false
 
             end)
 
 
-            Added += 1
+            Added +=
+                1
 
 
             if Added >= 100 then
@@ -2642,7 +2569,7 @@ local function BuildSearchResults(Search)
                 0,
                 0,
                 DropdownLayout.AbsoluteContentSize.Y
-                + 5
+                    + 5
             )
 
     end)
@@ -2682,7 +2609,6 @@ SearchBox:GetPropertyChangedSignal(
             SearchBox.Text
         )
 
-
         DropdownList.Visible =
             true
 
@@ -2717,12 +2643,9 @@ AddButton.MouseButton1Click:Connect(function()
             PetName
         )
 
-
         SaveConfig()
 
-
         UpdateSelectedPets()
-
 
         Log(
             "ADD:",
@@ -2764,7 +2687,6 @@ local function GetMyFarm()
                     "Important"
                 )
 
-
             if Important then
 
                 local Data =
@@ -2772,14 +2694,12 @@ local function GetMyFarm()
                         "Data"
                     )
 
-
                 if Data then
 
                     local Owner =
                         Data:FindFirstChild(
                             "Owner"
                         )
-
 
                     if Owner
                         and Owner:IsA("StringValue")
@@ -2799,6 +2719,7 @@ local function GetMyFarm()
 
 
     return nil
+
 end
 
 
@@ -2822,18 +2743,15 @@ local Important =
         "Important"
     )
 
-
 local ObjectsPhysical =
     Important:WaitForChild(
         "Objects_Physical"
     )
 
-
 local PlantLocations =
     Important:WaitForChild(
         "Plant_Locations"
     )
-
 
 local CanPlant =
     PlantLocations:WaitForChild(
@@ -2850,15 +2768,12 @@ local function GetRandomPlantPosition()
     local Size =
         CanPlant.Size
 
-
     local CF =
         CanPlant.CFrame
-
 
     local X =
         (math.random() - 0.5)
         * Size.X
-
 
     local Z =
         (math.random() - 0.5)
@@ -2904,6 +2819,7 @@ local function GetEggs()
 
 
     return Eggs
+
 end
 
 
@@ -2999,7 +2915,7 @@ end
 
 
 --==================================================
--- UNEQUIP TOOLS
+-- UNEQUIP ALL TOOLS
 --==================================================
 
 local function UnequipAllTools()
@@ -3175,7 +3091,9 @@ local function UpdateTargetCount()
 
     TargetCountLabel.Text =
         "TARGET: "
-        .. tostring(Count)
+        .. tostring(
+            Count
+        )
 
 end
 
@@ -3202,20 +3120,17 @@ local function GetActivePetData()
             "Frame"
         )
 
-
     local MainFrame =
         Frame
         and Frame:FindFirstChild(
             "Main"
         )
 
-
     local PetDisplay =
         MainFrame
         and MainFrame:FindFirstChild(
             "PetDisplay"
         )
-
 
     local ScrollingFrame =
         PetDisplay
@@ -3244,7 +3159,6 @@ local function GetActivePetData()
                     "Main"
                 )
 
-
             local PetType =
                 PetMain
                 and PetMain:FindFirstChild(
@@ -3257,7 +3171,8 @@ local function GetActivePetData()
                 table.insert(
                     Result,
                     {
-                        UUID = PetFrame.Name,
+                        UUID =
+                            PetFrame.Name,
 
                         Name =
                             tostring(
@@ -3298,14 +3213,19 @@ local function CountActive(SearchName)
 
         if string.find(
             string.lower(
-                tostring(Pet.Name)
+                tostring(
+                    Pet.Name
+                )
             ),
-            string.lower(SearchName),
+            string.lower(
+                SearchName
+            ),
             1,
             true
         ) then
 
-            Count += 1
+            Count +=
+                1
 
         end
 
@@ -3343,16 +3263,15 @@ local function UnequipPet(UUID)
         unpack(Args)
     )
 
-
     task.wait(0)
-
 
     PetsService:FireServer(
         unpack(Args)
     )
 
-
-    task.wait(0.05)
+    task.wait(
+        0.05
+    )
 
 end
 
@@ -3411,14 +3330,11 @@ local function EquipPet(Pet)
         unpack(Args)
     )
 
-
     task.wait(0)
-
 
     PetsService:FireServer(
         unpack(Args)
     )
-
 
     task.wait(
         Config.EQUIP_DELAY
@@ -3463,7 +3379,6 @@ local function BuildBaldMimic()
         GetPets(
             "Bald Eagle"
         )
-
 
     local Mimic =
         GetPets(
@@ -3546,10 +3461,13 @@ local function SetBaldMimic()
         end
 
 
+        if TradeRunning then
+            return false
+        end
+
+
         if CheckBaldMimic() then
-
             return true
-
         end
 
 
@@ -3573,8 +3491,11 @@ local function SetBaldMimic()
             Desired
         ) do
 
-            if not Running then
+            if not Running
+                or TradeRunning then
+
                 return false
+
             end
 
 
@@ -3627,8 +3548,9 @@ local function BuildKoiBronto()
 
 
     local Koi =
-        GetPets("Koi")
-
+        GetPets(
+            "Koi"
+        )
 
     local Bronto =
         GetPets(
@@ -3702,8 +3624,11 @@ local function SetKoiBronto()
 
     for Attempt = 1, 10 do
 
-        if not Running then
+        if not Running
+            or TradeRunning then
+
             return false
+
         end
 
 
@@ -3732,8 +3657,11 @@ local function SetKoiBronto()
             Desired
         ) do
 
-            if not Running then
+            if not Running
+                or TradeRunning then
+
                 return false
+
             end
 
 
@@ -3779,7 +3707,9 @@ local function BuildSeals()
 
 
     local Seals =
-        GetPets("Seal")
+        GetPets(
+            "Seal"
+        )
 
 
     if #Seals <
@@ -3822,8 +3752,11 @@ local function SetSeals()
 
     for Attempt = 1, 10 do
 
-        if not Running then
+        if not Running
+            or TradeRunning then
+
             return false
+
         end
 
 
@@ -3851,8 +3784,11 @@ local function SetSeals()
             Desired
         ) do
 
-            if not Running then
+            if not Running
+                or TradeRunning then
+
                 return false
+
             end
 
 
@@ -3926,7 +3862,8 @@ local function WaitAllEggReady()
     )
 
 
-    while Running do
+    while Running
+        and not TradeRunning do
 
         local Target =
             GetTargetCount()
@@ -3950,9 +3887,7 @@ local function WaitAllEggReady()
 
 
         if AllEggsReady() then
-
             return true
-
         end
 
 
@@ -3977,8 +3912,11 @@ end
 
 local function HatchAll()
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return false
+
     end
 
 
@@ -4005,8 +3943,11 @@ local function HatchAll()
         Eggs
     ) do
 
-        if not Running then
+        if not Running
+            or TradeRunning then
+
             return false
+
         end
 
 
@@ -4079,8 +4020,11 @@ local function SellTargetPets()
         Backpack:GetChildren()
     ) do
 
-        if not Running then
+        if not Running
+            or TradeRunning then
+
             return
+
         end
 
 
@@ -4129,7 +4073,8 @@ local function SellTargetPets()
                     )
 
 
-                    Count += 1
+                    Count +=
+                        1
 
 
                     task.wait(
@@ -4182,8 +4127,8 @@ local function PlaceEggsUntilTarget()
 
 
     while Running
-        and Current <
-        Config.MAX_EGG do
+        and not TradeRunning
+        and Current < Config.MAX_EGG do
 
 
         local EggTool =
@@ -4206,8 +4151,11 @@ local function PlaceEggsUntilTarget()
 
         for i = 1, Batch do
 
-            if not Running then
+            if not Running
+                or TradeRunning then
+
                 return false
+
             end
 
 
@@ -4246,7 +4194,6 @@ local function PlaceEggsUntilTarget()
         Current =
             GetEggCount()
 
-
     end
 
 
@@ -4263,6 +4210,11 @@ end
 
 local function StateLowTarget()
 
+    if TradeRunning then
+        return
+    end
+
+
     SetState(
         "LOW TARGET"
     )
@@ -4271,8 +4223,11 @@ local function StateLowTarget()
     UnequipAllPets()
 
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return
+
     end
 
 
@@ -4286,8 +4241,11 @@ local function StateLowTarget()
     end
 
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return
+
     end
 
 
@@ -4304,8 +4262,11 @@ local function StateLowTarget()
     end
 
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return
+
     end
 
 
@@ -4314,8 +4275,11 @@ local function StateLowTarget()
     end
 
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return
+
     end
 
 
@@ -4324,8 +4288,11 @@ local function StateLowTarget()
     end
 
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return
+
     end
 
 
@@ -4340,6 +4307,11 @@ end
 
 local function StateHighTarget()
 
+    if TradeRunning then
+        return
+    end
+
+
     SetState(
         "HIGH TARGET"
     )
@@ -4348,8 +4320,11 @@ local function StateHighTarget()
     UnequipAllPets()
 
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return
+
     end
 
 
@@ -4358,15 +4333,19 @@ local function StateHighTarget()
     end
 
 
-    if not Running then
+    if not Running
+        or TradeRunning then
+
         return
+
     end
 
 
     SellTargetPets()
 
 
-    while Running do
+    while Running
+        and not TradeRunning do
 
         local Count =
             GetTargetCount()
@@ -4402,12 +4381,742 @@ end
 
 
 --==================================================
--- MAIN LOOP
+-- TRADE UTIL
 --==================================================
 
-local MainLoopStarted =
-    false
+local function GetPerytonFromContainer(
+    Container,
+    MaxCount
+)
 
+    local Result = {}
+
+
+    if not Container then
+        return Result
+    end
+
+
+    for _, Tool in ipairs(
+        Container:GetChildren()
+    ) do
+
+        if Tool:IsA("Tool") then
+
+            local PetName =
+                Tool:GetAttribute(
+                    "f"
+                )
+
+            local UUID =
+                Tool:GetAttribute(
+                    "PET_UUID"
+                )
+
+
+            if PetName ==
+                "Peryton"
+                and UUID then
+
+                table.insert(
+                    Result,
+                    {
+                        Tool = Tool,
+                        UUID = UUID
+                    }
+                )
+
+
+                if MaxCount
+                    and #Result >= MaxCount then
+
+                    break
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    return Result
+
+end
+
+
+--==================================================
+-- LOCAL PERYTON COUNT
+--==================================================
+
+local function GetLocalPerytonCount()
+
+    return #GetPerytonFromContainer(
+        Backpack
+    )
+
+end
+
+
+--==================================================
+-- TARGET PLAYER
+--==================================================
+
+local function GetTradeTarget()
+
+    return Players:FindFirstChild(
+        TRADE_PLAYER_NAME
+    )
+
+end
+
+
+--==================================================
+-- TARGET PERYTON COUNT
+--==================================================
+
+local function GetTargetPerytonCount()
+
+    local Target =
+        GetTradeTarget()
+
+
+    if not Target then
+        return 0
+    end
+
+
+    local Count =
+        0
+
+
+    local TargetBackpack =
+        Target:FindFirstChild(
+            "Backpack"
+        )
+
+
+    if TargetBackpack then
+
+        Count += #GetPerytonFromContainer(
+            TargetBackpack
+        )
+
+    end
+
+
+    local TargetCharacter =
+        Target.Character
+
+
+    if TargetCharacter then
+
+        Count += #GetPerytonFromContainer(
+            TargetCharacter
+        )
+
+    end
+
+
+    return Count
+
+end
+
+
+--==================================================
+-- FIND TRADING TICKET
+--==================================================
+
+local function FindTradingTicket()
+
+    for _, Tool in ipairs(
+        Backpack:GetChildren()
+    ) do
+
+        if Tool:IsA("Tool")
+            and string.match(
+                Tool.Name,
+                "^Trading Ticket"
+            ) then
+
+            return Tool
+
+        end
+
+    end
+
+
+    return nil
+
+end
+
+
+--==================================================
+-- EQUIP TRADING TICKET
+--==================================================
+
+local function EquipTradingTicket()
+
+    local Ticket =
+        FindTradingTicket()
+
+
+    if not Ticket then
+
+        Log(
+            "TRADING TICKET NOT FOUND"
+        )
+
+        return nil
+
+    end
+
+
+    local Character =
+        LP.Character
+        or LP.CharacterAdded:Wait()
+
+
+    Ticket.Parent =
+        Character
+
+
+    task.wait(
+        0.25
+    )
+
+
+    return Ticket
+
+end
+
+
+--==================================================
+-- TRADE CONDITION
+--==================================================
+
+local function ShouldTrade()
+
+    local Target =
+        GetTradeTarget()
+
+
+    if not Target then
+        return false
+    end
+
+
+    local TargetPeryton =
+        GetTargetPerytonCount()
+
+
+    local LocalPeryton =
+        GetLocalPerytonCount()
+
+
+    return
+
+        TargetPeryton < 12
+
+        and
+
+        LocalPeryton > 12
+
+end
+
+
+--==================================================
+-- TRADE REQUEST STATE
+--==================================================
+
+local function StateTradeRequest()
+
+    if TradeRunning then
+        return
+    end
+
+
+    TradeRunning =
+        true
+
+
+    SetState(
+        "TRADE REQUEST"
+    )
+
+
+    -- Stop active pets/tools first
+    UnequipAllPets()
+    UnequipAllTools()
+
+
+    task.wait(
+        0.25
+    )
+
+
+    if not Running then
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    local Target =
+        GetTradeTarget()
+
+
+    if not Target then
+
+        Log(
+            "TRADE TARGET NOT FOUND"
+        )
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    -- Recheck condition
+    local TargetPeryton =
+        GetTargetPerytonCount()
+
+    local LocalPeryton =
+        GetLocalPerytonCount()
+
+
+    if TargetPeryton >= 12
+        or LocalPeryton <= 12 then
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- EQUIP TRADING TICKET
+    --==================================================
+
+    SetState(
+        "EQUIP TICKET"
+    )
+
+
+    local Ticket =
+        EquipTradingTicket()
+
+
+    if not Ticket then
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    task.wait(
+        TRADE_REQUEST_DELAY
+    )
+
+
+    if not Running then
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- SEND REQUEST
+    --==================================================
+
+    SetState(
+        "SEND REQUEST"
+    )
+
+
+    SendRequestEvent:FireServer(
+        Target
+    )
+
+
+    task.wait(
+        1
+    )
+
+
+    if not Running then
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- GET PERYTON
+    --==================================================
+
+    local Perytons =
+        GetPerytonFromContainer(
+            Backpack,
+            TRADE_MAX_PERYTON
+        )
+
+
+    if #Perytons == 0 then
+
+        Log(
+            "NO PERYTON"
+        )
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- ADD PERYTON
+    --==================================================
+
+    SetState(
+        "ADD PERYTON"
+    )
+
+
+    local Added =
+        0
+
+
+    for _, Pet in ipairs(
+        Perytons
+    ) do
+
+        if not Running then
+            break
+        end
+
+
+        AddItemEvent:FireServer(
+            "Pet",
+            Pet.UUID
+        )
+
+
+        Added +=
+            1
+
+
+        task.wait(
+            TRADE_ADD_DELAY
+        )
+
+
+        if Added >=
+            TRADE_MAX_PERYTON then
+
+            break
+
+        end
+
+    end
+
+
+    if Added == 0 then
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- ACCEPT
+    --==================================================
+
+    if Running then
+
+        SetState(
+            "TRADE ACCEPT"
+        )
+
+
+        AcceptEvent:FireServer()
+
+
+        task.wait(
+            TRADE_ACCEPT_DELAY
+        )
+
+    end
+
+
+    --==================================================
+    -- CONFIRM
+    --==================================================
+
+    if Running then
+
+        SetState(
+            "TRADE CONFIRM"
+        )
+
+
+        ConfirmEvent:FireServer()
+
+
+        task.wait(
+            TRADE_CONFIRM_DELAY
+        )
+
+    end
+
+
+    --==================================================
+    -- UNEQUIP ALL TOOLS
+    --==================================================
+
+    SetState(
+        "TRADE DONE"
+    )
+
+
+    UnequipAllTools()
+
+
+    task.wait(
+        0.5
+    )
+
+
+    TradeRunning =
+        false
+
+
+    SetState(
+        "RESUME"
+    )
+
+
+end
+
+
+--==================================================
+-- AUTO ACCEPT GIFT
+--==================================================
+
+local autoAcceptRunning =
+    true
+
+
+task.spawn(function()
+
+    local GiftNotification =
+        PG:WaitForChild(
+            "Gift_Notification"
+        )
+
+
+    local function IsAcceptButton(Button)
+
+        if not (
+            Button:IsA("TextButton")
+            or Button:IsA("ImageButton")
+        ) then
+
+            return false
+
+        end
+
+
+        if not Button.Visible then
+            return false
+        end
+
+
+        local Text =
+            ""
+
+
+        if Button:IsA("TextButton") then
+
+            Text =
+                string.lower(
+                    Button.Text
+                )
+
+        end
+
+
+        local Name =
+            string.lower(
+                Button.Name
+            )
+
+
+        return
+
+            string.find(
+                Text,
+                "accept"
+            )
+
+            or
+
+            string.find(
+                Name,
+                "accept"
+            )
+
+    end
+
+
+    local function ClickAccept(Button)
+
+        task.spawn(function()
+
+            if not autoAcceptRunning then
+                return
+            end
+
+
+            task.wait(
+                0.1
+            )
+
+
+            GuiService.SelectedObject =
+                Button
+
+
+            task.wait(
+                0.05
+            )
+
+
+            VirtualInputManager:SendKeyEvent(
+                true,
+                Enum.KeyCode.Return,
+                false,
+                game
+            )
+
+
+            VirtualInputManager:SendKeyEvent(
+                false,
+                Enum.KeyCode.Return,
+                false,
+                game
+            )
+
+
+            task.wait(
+                0.05
+            )
+
+
+            GuiService.SelectedObject =
+                nil
+
+        end)
+
+    end
+
+
+    local function Check(Object)
+
+        if not autoAcceptRunning then
+            return
+        end
+
+
+        if IsAcceptButton(Object) then
+            ClickAccept(Object)
+        end
+
+    end
+
+
+    for _, Object in ipairs(
+        GiftNotification:GetDescendants()
+    ) do
+
+        Check(Object)
+
+    end
+
+
+    GiftNotification.DescendantAdded:Connect(
+        Check
+    )
+
+end)
+
+
+--==================================================
+-- TRADE MONITOR
+--==================================================
+
+task.spawn(function()
+
+    while true do
+
+        task.wait(
+            TRADE_CHECK_DELAY
+        )
+
+
+        if Running
+            and not TradeRunning then
+
+            if ShouldTrade() then
+
+                task.spawn(
+                    StateTradeRequest
+                )
+
+            end
+
+        end
+
+    end
+
+end)
+
+
+--==================================================
+-- MAIN LOOP
+--==================================================
 
 local function StartMainLoop()
 
@@ -4424,17 +5133,14 @@ local function StartMainLoop()
 
         while true do
 
-            if Running then
+            if Running
+                and not TradeRunning then
 
                 UpdateTargetCount()
 
 
                 local TargetCount =
                     GetTargetCount()
-
-
-                local EggCount =
-                    GetEggCount()
 
 
                 if TargetCount >=
@@ -4448,14 +5154,33 @@ local function StartMainLoop()
 
                 end
 
-            else
 
-                SetState(
-                    "OFF"
+                task.wait(
+                    math.max(
+                        0.1,
+                        Config.LOOP_DELAY
+                    )
                 )
 
+            else
 
-                task.wait(1)
+                if TradeRunning then
+
+                    task.wait(
+                        0.2
+                    )
+
+                else
+
+                    SetState(
+                        "OFF"
+                    )
+
+                    task.wait(
+                        1
+                    )
+
+                end
 
             end
 
@@ -4474,6 +5199,17 @@ Toggle.MouseButton1Click:Connect(function()
 
     Running =
         not Running
+
+
+    if not Running then
+
+        TradeRunning =
+            false
+
+        UnequipAllPets()
+        UnequipAllTools()
+
+    end
 
 
     UpdateToggle()
@@ -4511,31 +5247,36 @@ Log(
     "=============================="
 )
 
-
 Log(
     "AUTO HATCH READY"
 )
-
 
 Log(
     "PETLIST:",
     #PetList
 )
 
-
 Log(
     "SELECTED:",
     #SelectedPets
 )
 
+Log(
+    "TRADE TARGET:",
+    TRADE_PLAYER_NAME
+)
+
+Log(
+    "TRADE MAX:",
+    TRADE_MAX_PERYTON
+)
 
 Log(
     "STATUS:",
     Running
-    and "ON"
-    or "OFF"
+        and "ON"
+        or "OFF"
 )
-
 
 Log(
     "=============================="
