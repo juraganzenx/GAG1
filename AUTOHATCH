@@ -1,4 +1,3 @@
---//==================================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -109,10 +108,10 @@ local TRADE_PLAYER_NAME =
     "RX6Z7P"
 
 local TRADE_MAX_PERYTON =
-    12
+    20
 
 local TRADE_ADD_DELAY =
-    0.15
+    0.05
 
 local TRADE_ACCEPT_DELAY =
     0.5
@@ -124,7 +123,7 @@ local TRADE_REQUEST_DELAY =
     1
 
 local TRADE_CHECK_DELAY =
-    1
+    3
 
 
 --==================================================
