@@ -1,4 +1,4 @@
---//==========================================a========
+--//==================================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -67,14 +67,15 @@ local TRADE_WORLD_PLACE_ID =
 local isTravelingToTrade =
     false
 
-local travelEventToTrade
+-- TravelToTradeWorld is inside GameEvents.TradeWorld
+local GameEvents_Trade =
+    RS:WaitForChild("GameEvents")
 
-pcall(function()
-    travelEventToTrade =
-        RS:WaitForChild("GameEvents")
-            :WaitForChild("TradeEvents")
-            :WaitForChild("TravelToTradeWorld")
-end)
+local TradeWorldFolder =
+    GameEvents_Trade:WaitForChild("TradeWorld")
+
+local travelEventToTrade =
+    TradeWorldFolder:WaitForChild("TravelToTradeWorld")
 
 local SPRINGTIDE_BACKPACK_LIMIT =
     300
@@ -4708,10 +4709,6 @@ local function HandleSpringtideExhausted()
 
         isTravelingToTrade =
             true
-
-        SpringtideExhaustionHandled =
-            true
-
 
         local Success, Error =
             pcall(function()
