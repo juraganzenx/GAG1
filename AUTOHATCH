@@ -1,4 +1,4 @@
---//============================================a======
+--//==================================================
 --// AUTO HATCH + AUTO SELL + CONFIGURABLE AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -2482,36 +2482,45 @@ end
 local function GetPets(SearchName)
 
     local Result = {}
+    SearchName = tostring(SearchName or "")
 
+    -- Check both Backpack and Character.
+    -- A pet can temporarily be equipped, so checking Backpack only
+    -- can make TARGET show 0 even though the pet is owned.
+    local Containers = {
+        Backpack,
+        LP.Character
+    }
 
-    for _, Tool in ipairs(
-        Backpack:GetChildren()
-    ) do
+    for _, Container in ipairs(Containers) do
 
-        if IsPet(Tool) then
+        if Container then
 
-            if string.find(
-                string.lower(Tool.Name),
-                string.lower(SearchName),
-                1,
-                true
-            ) then
+            for _, Tool in ipairs(Container:GetChildren()) do
 
-                local UUID =
-                    GetUUID(Tool)
+                if Tool:IsA("Tool") then
 
+                    local UUID = GetUUID(Tool)
 
-                if UUID then
+                    if UUID
+                        and string.find(
+                            string.lower(Tool.Name),
+                            string.lower(SearchName),
+                            1,
+                            true
+                        ) then
 
-                    table.insert(
-                        Result,
-                        {
-                            Tool = Tool,
-                            UUID = UUID,
-                            Name = Tool.Name,
-                            KG = GetKG(Tool)
-                        }
-                    )
+                        table.insert(
+                            Result,
+                            {
+                                Tool = Tool,
+                                UUID = UUID,
+                                Name = Tool.Name,
+                                KG = GetKG(Tool)
+                            }
+                        )
+
+                    end
 
                 end
 
