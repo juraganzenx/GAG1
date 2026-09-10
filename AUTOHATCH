@@ -1,4 +1,4 @@
---//========================a==========================
+--//==================================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -60,37 +60,6 @@ local UIS =
 
 local HttpService =
     game:GetService("HttpService")
-
-local TRADE_WORLD_PLACE_ID =
-    129954712878723
-
-local isTravelingToTrade =
-    false
-
-local BuyTrashStarted =
-    false
-
-local LastPlaceId =
-    game.PlaceId
-
--- TravelToTradeWorld is inside GameEvents.TradeWorld
-local GameEvents_Trade =
-    RS:WaitForChild("GameEvents")
-
-local TradeWorldFolder =
-    GameEvents_Trade:WaitForChild("TradeWorld")
-
-local travelEventToTrade =
-    TradeWorldFolder:WaitForChild("TravelToTradeWorld")
-
-local SPRINGTIDE_BACKPACK_LIMIT =
-    300
-
-local BUYTRASH_URL =
-    "https://raw.githubusercontent.com/juraganzenx/GAG1/refs/heads/main/BUYTRASH"
-
-local SpringtideExhaustionHandled =
-    false
 
 local GuiService =
     game:GetService("GuiService")
@@ -4595,194 +4564,6 @@ end
 
 
 --==================================================
--- SPRINGTIDE EXHAUSTED -> TRADE WORLD
---==================================================
-
-local function IsTradeWorld()
-    return game.PlaceId == TRADE_WORLD_PLACE_ID
-end
-
-local function GetSellPetBackpackCount()
-    -- Same SelectedPets list and GetPets() logic used by Auto Hatch.
-    local Count = 0
-
-    for _, PetName in ipairs(SelectedPets) do
-        Count += #GetPets(PetName)
-    end
-
-    return Count
-end
-
-local function ExecuteBuyTrash()
-
-    if BuyTrashStarted then
-        return true
-    end
-
-    BuyTrashStarted = true
-    SpringtideExhaustionHandled = true
-
-    SetState("BUYTRASH")
-    Log("SPRINGTIDE EGG EXHAUSTED")
-    Log("EXECUTING BUYTRASH RAW")
-
-    -- Execute the RAW BUYTRASH exactly like this:
-    -- loadstring(game:HttpGet(URL, true))()
-    local Success, Error =
-        pcall(function()
-
-            loadstring(
-                game:HttpGet(
-                    BUYTRASH_URL,
-                    true
-                )
-            )()
-
-        end)
-
-    if not Success then
-
-        BuyTrashStarted = false
-        SpringtideExhaustionHandled = false
-
-        Log(
-            "BUYTRASH EXECUTE FAILED",
-            tostring(Error)
-        )
-
-        return false
-    end
-
-    Log("BUYTRASH EXECUTED")
-
-    return true
-end
-
-local function HandleSpringtideExhausted()
-
-    -- The game can keep the same Lua environment after TravelToTradeWorld.
-    -- Reset the travel lock when the place actually changes.
-    if LastPlaceId ~= game.PlaceId then
-        LastPlaceId = game.PlaceId
-        isTravelingToTrade = false
-    end
-
-    -- Never block the Trade World branch because of the old exhaustion flag.
-    -- BUYTRASH must be evaluated after we actually arrive in Trade World.
-    if IsTradeWorld() then
-
-        -- TRADE WORLD = BUYTRASH MODE ONLY
-        -- Auto Hatch harus selalu OFF selama berada di Trade World.
-        if Running then
-            Running = false
-            TradeRunning = false
-            UpdateToggle()
-            UnequipAllPets()
-            UnequipAllTools()
-        end
-
-        if FindSpringtideEgg() then
-            return false
-        end
-
-        local Count = GetSellPetBackpackCount()
-
-        Log("TRADE WORLD - SELL PET BACKPACK COUNT:", Count)
-
-        if Count < SPRINGTIDE_BACKPACK_LIMIT then
-            return ExecuteBuyTrash()
-        end
-
-        Log("SELL PET COUNT >= 300 - KICK")
-        LP:Kick("Sell Pet Backpack sudah 300 atau lebih.")
-        return true
-    end
-
-    if SpringtideExhaustionHandled then
-        return true
-    end
-
-
-    -- Still have a Springtide Egg: normal Auto Hatch continues.
-    if FindSpringtideEgg() then
-        return false
-    end
-
-
-    --==================================================
-    -- NOT IN TRADE WORLD -> USE THE GAME TRAVEL REMOTE
-    --==================================================
-
-    if not IsTradeWorld() then
-
-        if isTravelingToTrade then
-            return true
-        end
-
-
-        SetState("TRADE WORLD")
-
-        Log(
-            "SPRINGTIDE EGG EMPTY - TRAVEL TO TRADE WORLD"
-        )
-
-
-        if not travelEventToTrade then
-
-            Log(
-                "TRADE TRAVEL EVENT NOT FOUND"
-            )
-
-            return true
-
-        end
-
-
-        isTravelingToTrade =
-            true
-
-        local Success, Error =
-            pcall(function()
-
-                travelEventToTrade:FireServer()
-
-            end)
-
-
-        if not Success then
-
-            Log(
-                "TRADE TRAVEL FAILED",
-                tostring(Error)
-            )
-
-            isTravelingToTrade =
-                false
-
-            SpringtideExhaustionHandled =
-                false
-
-            return false
-
-        end
-
-
-        Log(
-            "TRADE WORLD TRAVEL REQUEST SENT"
-        )
-
-        return true
-
-    end
-
-
-
-
-    return true
-end
-
-
---==================================================
 -- SAVE TRADE TARGET CACHE
 --==================================================
 
@@ -5865,25 +5646,21 @@ local function StartMainLoop()
             if Running
                 and not TradeRunning then
 
-                if not HandleSpringtideExhausted() then
-
-                    UpdateTargetCount()
+                UpdateTargetCount()
 
 
-                    local TargetCount =
-                        GetTargetCount()
+                local TargetCount =
+                    GetTargetCount()
 
 
-                    if TargetCount >=
-                        Config.TARGET_LIMIT then
+                if TargetCount >=
+                    Config.TARGET_LIMIT then
 
-                        StateHighTarget()
+                    StateHighTarget()
 
-                    else
+                else
 
-                        StateLowTarget()
-
-                    end
+                    StateLowTarget()
 
                 end
 
@@ -6034,57 +5811,5 @@ Log(
     "=============================="
 )
 
-
---==================================================
--- TRADE WORLD STARTUP CHECK
---==================================================
--- This runs independently from Running so a fresh execution
--- inside Trade World can execute BUYTRASH immediately.
-
-task.spawn(function()
-
-    task.wait(1)
-
-    if IsTradeWorld() then
-
-        -- FORCE AUTO HATCH OFF IN TRADE WORLD
-        Running = false
-        TradeRunning = false
-        UpdateToggle()
-        UnequipAllPets()
-        UnequipAllTools()
-
-        Log("TRADE WORLD DETECTED - AUTO HATCH OFF")
-        Log("TRADE WORLD MODE = BUYTRASH ONLY")
-
-        if FindSpringtideEgg() then
-            Log("TRADE WORLD - SPRINGTIDE EGG STILL EXISTS")
-            return
-        end
-
-        local Count =
-            GetSellPetBackpackCount()
-
-        Log(
-            "TRADE WORLD STARTUP - SELL PET BACKPACK COUNT:",
-            Count
-        )
-
-        if Count < SPRINGTIDE_BACKPACK_LIMIT then
-
-            ExecuteBuyTrash()
-
-        else
-
-            Log("SELL PET COUNT >= 300 - KICK")
-            LP:Kick(
-                "Sell Pet Backpack sudah 300 atau lebih."
-            )
-
-        end
-
-    end
-
-end)
 
 StartMainLoop()
