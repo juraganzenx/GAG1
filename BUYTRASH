@@ -1,1399 +1,5815 @@
---// BUY LISTING NO CLICK GUI
-
---// SERVICES
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-
---// REMOVE OLD GUI
-pcall(function()
-	if LocalPlayer.PlayerGui:FindFirstChild("BuyListingGui") then
-		LocalPlayer.PlayerGui.BuyListingGui:Destroy()
-	end
-end)
-
---// MODULES
-local BoothsReplication = require(
-	ReplicatedStorage.Modules.ReplicationReciever
-).new("Booths")
-
-local TradeBoothsData = require(
-	ReplicatedStorage.Data.TradeBoothsData
-)
-
-local TradeEvents = ReplicatedStorage.GameEvents.TradeEvents
-
-local ItemNameFinder = require(
-	ReplicatedStorage.Modules.ItemNameFinder
-)
-
-local PetList = require(
-	ReplicatedStorage.Data.PetRegistry
-).PetList
-
-BoothsReplication:GetDataAsync()
-
-local function getPetData(item)
-	if type(item) ~= "table" then return nil end
-	return item.PetData or {}
-end
-
-local function getBaseWeight(item)
-	local petData = getPetData(item)
-	return tonumber(petData.BaseWeight or petData.baseWeight) or 0
-end
-
-local function getLevel(item)
-	local petData = getPetData(item)
-	return tonumber(petData.Level or petData.level) or 0
-end
-
-local function getMutationType(item)
-	local petData = getPetData(item)
-
-	return tostring(
-		petData.MutationType
-		or petData.mutationType
-		or petData.Mutation
-		or ""
-	)
-end
-
-----------------------------------------------------------------
--- EGG GROUPS
-----------------------------------------------------------------
-local EggGroups = {
-
-	["Night Egg"] = {
-		"Hedgehog",
-		"Mole",
-		"Frog",
-		"Echo Frog",
-		"Night Owl",
-		"Raccoon"
-	}
+--//==================================================
+--// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
+--// 24/7 OPTIMIZED VERSION
+--//
+--// AUTO TRADE:
+--// TARGET PLAYER = FROM GITHUB addusername.json
+--// TARGET PERYTON < 12
+--// LOCAL PERYTON > 12
+--//
+--// TRADE FLOW:
+--// STOP ALL STATE
+--// -> EQUIP TRADING TICKET xN
+--// -> SEND REQUEST
+--// -> ADD MAX 20 PERYTON
+--// -> ACCEPT
+--// -> CONFIRM
+--// -> UNEQUIP ALL TOOLS
+--// -> RESUME AUTO HATCH
+--//
+--// GITHUB:
+--// https://raw.githubusercontent.com/juraganzenx/roblox-jobs/refs/heads/main/addusername.json
+--//
+--// GITHUB DIBACA:
+--// -> 1x SAAT EXECUTE
+--// -> TIDAK POLLING
+--// -> HASIL DISIMPAN KE LOCAL JSON
+--//
+--// SELF USERNAME:
+--// -> OTOMATIS DIKECUALIKAN
+--//
+--// CONTOH JSON:
+--// [
+--//     {
+--//         "username":"asepppy38",
+--//         "timestamp":1788706726,
+--//         "userId":8508210035
+--//     },
+--//     {
+--//         "username":"W6MN2J",
+--//         "timestamp":1788707007,
+--//         "userId":11422382110
+--//     }
+--// ]
+--//
+--//==================================================
 
 
+--==================================================
+-- SERVICES
+--==================================================
+
+local Players =
+    game:GetService("Players")
+
+local RS =
+    game:GetService("ReplicatedStorage")
+
+local UIS =
+    game:GetService("UserInputService")
+
+local HttpService =
+    game:GetService("HttpService")
+
+local GuiService =
+    game:GetService("GuiService")
+
+local VirtualInputManager =
+    game:GetService("VirtualInputManager")
+
+
+local LP =
+    Players.LocalPlayer
+
+local PG =
+    LP:WaitForChild("PlayerGui")
+
+local Backpack =
+    LP:WaitForChild("Backpack")
+
+
+local GameEvents =
+    RS:WaitForChild("GameEvents")
+
+local PetsService =
+    GameEvents:WaitForChild("PetsService")
+
+local PetEggService =
+    GameEvents:WaitForChild("PetEggService")
+
+local SellRemote =
+    GameEvents:WaitForChild("SellPet_RE")
+
+
+--==================================================
+-- TRADE EVENTS
+--==================================================
+
+local TradeEvents =
+    GameEvents:WaitForChild(
+        "TradeEvents"
+    )
+
+local SendRequestEvent =
+    TradeEvents:WaitForChild(
+        "SendRequest"
+    )
+
+local AddItemEvent =
+    TradeEvents:WaitForChild(
+        "AddItem"
+    )
+
+local AcceptEvent =
+    TradeEvents:WaitForChild(
+        "Accept"
+    )
+
+local ConfirmEvent =
+    TradeEvents:WaitForChild(
+        "Confirm"
+    )
+
+
+--==================================================
+-- TRADE CONFIG
+--==================================================
+
+local TRADE_TARGET_URL =
+    "https://raw.githubusercontent.com/juraganzenx/roblox-jobs/refs/heads/main/addusername.json"
+
+local TRADE_TARGET_CACHE =
+    "AutoHatch_TradeTargets.json"
+
+local TRADE_MAX_PERYTON =
+    20
+
+local TRADE_ADD_DELAY =
+    0.05
+
+local TRADE_ACCEPT_DELAY =
+    0.5
+
+local TRADE_CONFIRM_DELAY =
+    1
+
+local TRADE_REQUEST_DELAY =
+    1
+
+local TRADE_CHECK_DELAY =
+    3
+
+
+--==================================================
+-- SAVE
+--==================================================
+
+local SAVE_FILE =
+    "AutoHatchSpringtide_Config.json"
+
+
+local DefaultConfig = {
+
+    -- COLUMN 1
+
+    LOOP_DELAY = 1,
+
+    EQUIP_DELAY = 0.5,
+
+    AFTER_EQUIP_WAIT = 3,
+
+
+    -- COLUMN 2
+
+    TARGET_LIMIT = 30,
+
+    MAX_EGG = 13,
+
+    SELL_KG_LIMIT = 3,
+
+
+    -- COLUMN 3
+
+    BALD_TARGET = 1,
+
+    MIMIC_TARGET = 7,
+
+    PLACE_BATCH = 10,
+
+
+    -- COLUMN 4
+
+    BRONTO_TARGET = 2,
+
+    KOI_TARGET = 5,
+
+    SEAL_TARGET = 8,
+
+
+    -- INTERNAL
+
+    PLACE_DELAY = 0.15,
+
+    AFTER_PLACE_WAIT = 1,
+
+    SELL_DELAY = 0,
+
+    HATCH_DELAY = 0
 }
 
 
-----------------------------------------------------------------
--- SAVE FILES
-----------------------------------------------------------------
-local SAVE_FILE = "AutoBUYLISTINGHUGE.txt"
-local AUTO_BUY_FILE = "AutoBuyStatusHUGE.txt"
-local FIND_SELLER_FILE = "FindSellerTargetHUGE.txt"
+local Config = {}
 
-----------------------------------------------------------------
--- SAVE / LOAD
-----------------------------------------------------------------
-local function saveSettings(data)
 
-	if writefile then
+for Key, Value in pairs(
+    DefaultConfig
+) do
 
-		pcall(function()
-
-			writefile(
-				SAVE_FILE,
-				HttpService:JSONEncode(data)
-			)
-
-		end)
-
-	end
+    Config[Key] =
+        Value
 
 end
 
-local function loadSettings()
 
-	if readfile and isfile and isfile(SAVE_FILE) then
+local SavedData =
+    nil
 
-		local ok,data = pcall(function()
-
-			return HttpService:JSONDecode(
-				readfile(SAVE_FILE)
-			)
-
-		end)
-
-		if ok and data then
-			return data
-		end
-
-	end
-
-	return {}
-
-end
-
-local function saveAutoBuyStatus(state)
-
-	if writefile then
-
-		pcall(function()
-
-			writefile(
-				AUTO_BUY_FILE,
-				state and "ON" or "OFF"
-			)
-
-		end)
-
-	end
-
-end
-
-local function loadAutoBuyStatus()
-
-	if isfile and isfile(AUTO_BUY_FILE) then
-
-		local ok,data = pcall(readfile,AUTO_BUY_FILE)
-
-		if ok and data then
-			return data == "ON"
-		end
-
-	end
-
-	return false
-
-end
-
-local function saveFindSellerTarget(target)
-
-	if writefile then
-
-		pcall(function()
-
-			writefile(
-				FIND_SELLER_FILE,
-				target or ""
-			)
-
-		end)
-
-	end
-
-end
-
-local function loadFindSellerTarget()
-
-	if readfile and isfile and isfile(FIND_SELLER_FILE) then
-
-		local ok,data = pcall(readfile,FIND_SELLER_FILE)
-
-		if ok and data ~= "" then
-			return data
-		end
-
-	end
-
-	return nil
-
-end
-
-----------------------------------------------------------------
--- FIND SELLER PET
-----------------------------------------------------------------
-local function getFindSellerPet(target)
-
-	if EggGroups[target] then
-		return EggGroups[target][1]
-	end
-
-	return target
-
-end
-
-----------------------------------------------------------------
--- GUI
-----------------------------------------------------------------
-local gui = Instance.new("ScreenGui")
-gui.Name = "BuyListingGui"
-gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer.PlayerGui
 
 pcall(function()
 
-	if syn and syn.protect_gui then
-		syn.protect_gui(gui)
-	end
+    if isfile
+        and isfile(SAVE_FILE) then
+
+        local Raw =
+            readfile(
+                SAVE_FILE
+            )
+
+        SavedData =
+            HttpService:JSONDecode(
+                Raw
+            )
+
+    end
 
 end)
 
-local main = Instance.new("Frame")
-main.Parent = gui
-main.Size = UDim2.fromScale(0.68,0.82)
-main.AnchorPoint = Vector2.new(0.5,0.5)
-main.Position = UDim2.fromScale(0.5,0.5)
-main.BackgroundColor3 = Color3.fromRGB(25,25,25)
-main.BackgroundTransparency = 0.15
-main.BorderSizePixel = 0
-main.Active = true
-Instance.new("UICorner",main)
 
-----------------------------------------------------------------
+if type(SavedData) == "table" then
+
+    if type(SavedData.Config) == "table" then
+
+        for Key, Value in pairs(
+            SavedData.Config
+        ) do
+
+            if DefaultConfig[Key] ~= nil
+                and type(Value) == "number" then
+
+                Config[Key] =
+                    Value
+
+            end
+
+        end
+
+    end
+
+end
+
+
+local Running =
+    false
+
+
+if type(SavedData) == "table"
+    and type(SavedData.Running) == "boolean" then
+
+    Running =
+        SavedData.Running
+
+end
+
+
+local SelectedPets = {}
+
+
+if type(SavedData) == "table"
+    and type(SavedData.SelectedPets) == "table" then
+
+    for _, Name in ipairs(
+        SavedData.SelectedPets
+    ) do
+
+        if type(Name) == "string" then
+
+            table.insert(
+                SelectedPets,
+                Name
+            )
+
+        end
+
+    end
+
+end
+
+
+--==================================================
+-- FLAGS
+--==================================================
+
+local TradeRunning =
+    false
+
+local MainLoopStarted =
+    false
+
+local CurrentState =
+    "IDLE"
+
+
+--==================================================
+-- TRADE TARGET VARIABLES
+--==================================================
+
+local TradeTargets = {}
+
+local TradeTargetMap = {}
+
+local TradeTargetLoaded =
+    false
+
+
+--==================================================
+-- SAVE FUNCTION
+--==================================================
+
+local SaveBusy =
+    false
+
+
+local function SaveConfig()
+
+    if SaveBusy then
+        return
+    end
+
+    SaveBusy =
+        true
+
+    task.defer(function()
+
+        pcall(function()
+
+            if writefile then
+
+                local Data = {
+
+                    Config =
+                        Config,
+
+                    Running =
+                        Running,
+
+                    SelectedPets =
+                        SelectedPets
+
+                }
+
+                writefile(
+                    SAVE_FILE,
+                    HttpService:JSONEncode(
+                        Data
+                    )
+                )
+
+            end
+
+        end)
+
+        SaveBusy =
+            false
+
+    end)
+
+end
+
+
+--==================================================
+-- PETLIST
+--==================================================
+
+local function GetPetRegistryList()
+
+    local Result = {}
+
+
+    local Data =
+        RS:FindFirstChild(
+            "Data"
+        )
+
+    if not Data then
+        return Result
+    end
+
+
+    local PetRegistry =
+        Data:FindFirstChild(
+            "PetRegistry"
+        )
+
+    if not PetRegistry then
+        return Result
+    end
+
+
+    local PetList =
+        PetRegistry:FindFirstChild(
+            "PetList"
+        )
+
+    if not PetList then
+        return Result
+    end
+
+
+    if PetList:IsA("ModuleScript") then
+
+        local Success, Module =
+            pcall(
+                require,
+                PetList
+            )
+
+        if Success
+            and type(Module) == "table" then
+
+            for Name, Value in pairs(
+                Module
+            ) do
+
+                if type(Name) == "string" then
+
+                    table.insert(
+                        Result,
+                        Name
+                    )
+
+                elseif type(Value) == "string" then
+
+                    table.insert(
+                        Result,
+                        Value
+                    )
+
+                end
+
+            end
+
+        end
+
+    else
+
+        for _, Object in ipairs(
+            PetList:GetChildren()
+        ) do
+
+            table.insert(
+                Result,
+                Object.Name
+            )
+
+        end
+
+    end
+
+
+    table.sort(
+        Result,
+        function(A, B)
+
+            return string.lower(A)
+                < string.lower(B)
+
+        end
+    )
+
+
+    return Result
+
+end
+
+
+local PetList =
+    GetPetRegistryList()
+
+
+--==================================================
+-- GUI CLEAN
+--==================================================
+
+local OldGui =
+    PG:FindFirstChild(
+        "AutoHatchLog"
+    )
+
+
+if OldGui then
+    OldGui:Destroy()
+end
+
+
+--==================================================
+-- SCREEN GUI
+--==================================================
+
+local ScreenGui =
+    Instance.new(
+        "ScreenGui"
+    )
+
+ScreenGui.Name =
+    "AutoHatchLog"
+
+ScreenGui.ResetOnSpawn =
+    false
+
+ScreenGui.ZIndexBehavior =
+    Enum.ZIndexBehavior.Sibling
+
+ScreenGui.Parent =
+    PG
+
+
+--==================================================
+-- MAIN
+--==================================================
+
+local Main =
+    Instance.new(
+        "Frame"
+    )
+
+Main.Size =
+    UDim2.new(
+        0,
+        340,
+        0,
+        430
+    )
+
+Main.Position =
+    UDim2.new(
+        0,
+        20,
+        0,
+        80
+    )
+
+Main.BackgroundColor3 =
+    Color3.fromRGB(
+        20,
+        20,
+        20
+    )
+
+Main.BorderSizePixel =
+    0
+
+Main.Parent =
+    ScreenGui
+
+
+local MainCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+MainCorner.CornerRadius =
+    UDim.new(
+        0,
+        7
+    )
+
+MainCorner.Parent =
+    Main
+
+
+--==================================================
+-- HEADER
+--==================================================
+
+local Header =
+    Instance.new(
+        "Frame"
+    )
+
+Header.Size =
+    UDim2.new(
+        1,
+        0,
+        0,
+        30
+    )
+
+Header.BackgroundColor3 =
+    Color3.fromRGB(
+        30,
+        30,
+        30
+    )
+
+Header.BorderSizePixel =
+    0
+
+Header.Parent =
+    Main
+
+
+local HeaderCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+HeaderCorner.CornerRadius =
+    UDim.new(
+        0,
+        7
+    )
+
+HeaderCorner.Parent =
+    Header
+
+
+--==================================================
 -- TITLE
-----------------------------------------------------------------
-local title = Instance.new("TextLabel")
-title.Parent = main
-title.Size = UDim2.new(1,0,0,45)
-title.BackgroundTransparency = 1
-title.Text = "BUY LISTING MULTI PET"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 22
-title.TextColor3 = Color3.new(1,1,1)
+--==================================================
 
-----------------------------------------------------------------
--- CLOSE
-----------------------------------------------------------------
-local closeBtn = Instance.new("TextButton")
-closeBtn.Parent = main
-closeBtn.Size = UDim2.new(0,30,0,30)
-closeBtn.Position = UDim2.new(1,-38,0,8)
-closeBtn.Text = "X"
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 18
-closeBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
-closeBtn.TextColor3 = Color3.new(1,1,1)
-closeBtn.BorderSizePixel = 0
-Instance.new("UICorner",closeBtn)
+local Title =
+    Instance.new(
+        "TextLabel"
+    )
 
-closeBtn.Activated:Connect(function()
-	gui.Enabled = false
-end)
+Title.Size =
+    UDim2.new(
+        0,
+        135,
+        1,
+        0
+    )
 
-----------------------------------------------------------------
+Title.Position =
+    UDim2.new(
+        0,
+        8,
+        0,
+        0
+    )
+
+Title.BackgroundTransparency =
+    1
+
+Title.Text =
+    "AUTO HATCH"
+
+Title.TextColor3 =
+    Color3.fromRGB(
+        255,
+        255,
+        255
+    )
+
+Title.TextSize =
+    11
+
+Title.Font =
+    Enum.Font.GothamBold
+
+Title.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+Title.Parent =
+    Header
+
+
+--==================================================
+-- STATE HEADER
+--==================================================
+
+local StateLabel =
+    Instance.new(
+        "TextLabel"
+    )
+
+StateLabel.Size =
+    UDim2.new(
+        0,
+        105,
+        1,
+        0
+    )
+
+StateLabel.Position =
+    UDim2.new(
+        0,
+        135,
+        0,
+        0
+    )
+
+StateLabel.BackgroundTransparency =
+    1
+
+StateLabel.Text =
+    "IDLE"
+
+StateLabel.TextColor3 =
+    Color3.fromRGB(
+        180,
+        180,
+        180
+    )
+
+StateLabel.TextSize =
+    9
+
+StateLabel.Font =
+    Enum.Font.GothamBold
+
+StateLabel.TextXAlignment =
+    Enum.TextXAlignment.Center
+
+StateLabel.Parent =
+    Header
+
+
+--==================================================
+-- TOGGLE
+--==================================================
+
+local Toggle =
+    Instance.new(
+        "TextButton"
+    )
+
+Toggle.Size =
+    UDim2.new(
+        0,
+        50,
+        0,
+        21
+    )
+
+Toggle.Position =
+    UDim2.new(
+        1,
+        -82,
+        0,
+        4
+    )
+
+Toggle.BackgroundColor3 =
+    Color3.fromRGB(
+        100,
+        40,
+        40
+    )
+
+Toggle.Text =
+    Running
+        and "ON"
+        or "OFF"
+
+Toggle.TextColor3 =
+    Color3.fromRGB(
+        255,
+        255,
+        255
+    )
+
+Toggle.TextSize =
+    9
+
+Toggle.Font =
+    Enum.Font.GothamBold
+
+Toggle.BorderSizePixel =
+    0
+
+Toggle.Parent =
+    Header
+
+
+local ToggleCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+ToggleCorner.CornerRadius =
+    UDim.new(
+        0,
+        4
+    )
+
+ToggleCorner.Parent =
+    Toggle
+
+
+--==================================================
 -- MINIMIZE
-----------------------------------------------------------------
-local minimized = false
-local originalSize = main.Size
+--==================================================
 
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Parent = main
-minimizeBtn.Size = UDim2.new(0,30,0,30)
-minimizeBtn.Position = UDim2.new(1,-75,0,8)
-minimizeBtn.Text = "-"
-minimizeBtn.Font = Enum.Font.GothamBold
-minimizeBtn.TextSize = 18
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-minimizeBtn.TextColor3 = Color3.new(1,1,1)
-minimizeBtn.BorderSizePixel = 0
-Instance.new("UICorner",minimizeBtn)
+local Minimize =
+    Instance.new(
+        "TextButton"
+    )
 
-local hiddenObjects = {}
+Minimize.Size =
+    UDim2.new(
+        0,
+        24,
+        0,
+        21
+    )
 
-minimizeBtn.Activated:Connect(function()
+Minimize.Position =
+    UDim2.new(
+        1,
+        -28,
+        0,
+        4
+    )
 
-	minimized = not minimized
+Minimize.BackgroundColor3 =
+    Color3.fromRGB(
+        55,
+        55,
+        55
+    )
 
-	if minimized then
+Minimize.Text =
+    "−"
 
-		main.Size = UDim2.new(
-			originalSize.X.Scale,
-			originalSize.X.Offset,
-			0,
-			45
-		)
+Minimize.TextColor3 =
+    Color3.fromRGB(
+        255,
+        255,
+        255
+    )
 
-		minimizeBtn.Text = "+"
+Minimize.TextSize =
+    14
 
-		for _,obj in ipairs(main:GetChildren()) do
+Minimize.Font =
+    Enum.Font.GothamBold
 
-			if obj ~= title
-			and obj ~= closeBtn
-			and obj ~= minimizeBtn then
+Minimize.BorderSizePixel =
+    0
 
-				if obj:IsA("GuiObject") then
+Minimize.Parent =
+    Header
 
-					hiddenObjects[obj] = obj.Visible
-					obj.Visible = false
 
-				end
+local MinCorner =
+    Instance.new(
+        "UICorner"
+    )
 
-			end
+MinCorner.CornerRadius =
+    UDim.new(
+        0,
+        4
+    )
 
-		end
+MinCorner.Parent =
+    Minimize
 
-	else
 
-		main.Size = originalSize
+--==================================================
+-- CONFIG FRAME
+--==================================================
 
-		minimizeBtn.Text = "-"
+local ConfigFrame =
+    Instance.new(
+        "Frame"
+    )
 
-		for obj,visible in pairs(hiddenObjects) do
+ConfigFrame.Size =
+    UDim2.new(
+        1,
+        -10,
+        0,
+        115
+    )
 
-			if obj and obj.Parent then
-				obj.Visible = visible
-			end
+ConfigFrame.Position =
+    UDim2.new(
+        0,
+        5,
+        0,
+        35
+    )
 
-		end
+ConfigFrame.BackgroundColor3 =
+    Color3.fromRGB(
+        25,
+        25,
+        25
+    )
 
-	end
+ConfigFrame.BorderSizePixel =
+    0
 
-end)
+ConfigFrame.Parent =
+    Main
 
-----------------------------------------------------------------
--- DRAG
-----------------------------------------------------------------
-local dragging = false
-local dragStart
-local startPos
 
-main.InputBegan:Connect(function(input)
+local ConfigCorner =
+    Instance.new(
+        "UICorner"
+    )
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-	or input.UserInputType == Enum.UserInputType.Touch then
+ConfigCorner.CornerRadius =
+    UDim.new(
+        0,
+        5
+    )
 
-		dragging = true
-		dragStart = input.Position
-		startPos = main.Position
+ConfigCorner.Parent =
+    ConfigFrame
 
-		input.Changed:Connect(function()
 
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
+--==================================================
+-- FOUR COLUMNS
+--==================================================
 
-		end)
+local Columns = {}
 
-	end
 
-end)
+for i = 1, 4 do
 
-UserInputService.InputChanged:Connect(function(input)
+    local Column =
+        Instance.new(
+            "Frame"
+        )
 
-	if dragging then
+    Column.Size =
+        UDim2.new(
+            0.25,
+            -4,
+            1,
+            -6
+        )
 
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch then
+    Column.Position =
+        UDim2.new(
+            (i - 1) * 0.25,
+            0,
+            0,
+            3
+        )
 
-			local delta = input.Position - dragStart
+    Column.BackgroundTransparency =
+        1
 
-			main.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
+    Column.Parent =
+        ConfigFrame
 
-		end
-
-	end
-
-end)
-
-----------------------------------------------------------------
--- SEARCH BOX
-----------------------------------------------------------------
-local searchBox = Instance.new("TextBox")
-searchBox.Parent = main
-searchBox.Size = UDim2.new(0.30,0,0,40)
-searchBox.Position = UDim2.new(0.02,0,0,55)
-searchBox.PlaceholderText = "Search Pet / Egg..."
-searchBox.Text = ""
-searchBox.Font = Enum.Font.Gotham
-searchBox.TextSize = 16
-searchBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-searchBox.TextColor3 = Color3.new(1,1,1)
-searchBox.BorderSizePixel = 0
-Instance.new("UICorner",searchBox)
-
-----------------------------------------------------------------
--- PRICE BOX
-----------------------------------------------------------------
-local priceBox = Instance.new("TextBox")
-priceBox.Parent = main
-priceBox.Size = UDim2.new(0.12,0,0,40)
-priceBox.Position = UDim2.new(0.34,0,0,55)
-priceBox.PlaceholderText = "Price (1)"
-priceBox.Text = ""
-priceBox.Font = Enum.Font.Gotham
-priceBox.TextSize = 16
-priceBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-priceBox.TextColor3 = Color3.new(1,1,1)
-priceBox.BorderSizePixel = 0
-Instance.new("UICorner",priceBox)
-
-------------------------------------------------
--- MIN WEIGHT BOX
-------------------------------------------------
-local minWeightBox = Instance.new("TextBox")
-minWeightBox.Parent = main
-minWeightBox.Size = UDim2.new(0.14,0,0,40)
-minWeightBox.Position = UDim2.new(0.47,0,0,55)
-minWeightBox.PlaceholderText = "Min KG (0.1)"
-minWeightBox.Text = ""
-minWeightBox.Font = Enum.Font.Gotham
-minWeightBox.TextSize = 16
-minWeightBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-minWeightBox.TextColor3 = Color3.new(1,1,1)
-minWeightBox.BorderSizePixel = 0
-Instance.new("UICorner",minWeightBox)
-
-------------------------------------------------
--- MIN LEVEL BOX
-------------------------------------------------
-local minLevelBox = Instance.new("TextBox")
-minLevelBox.Parent = main
-minLevelBox.Size = UDim2.new(0.12,0,0,40)
-minLevelBox.Position = UDim2.new(0.62,0,0,55)
-minLevelBox.PlaceholderText = "Min Level(1)"
-minLevelBox.Text = ""
-minLevelBox.Font = Enum.Font.Gotham
-minLevelBox.TextSize = 16
-minLevelBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-minLevelBox.TextColor3 = Color3.new(1,1,1)
-minLevelBox.BorderSizePixel = 0
-Instance.new("UICorner",minLevelBox)
-
-------------------------------------------------
--- MUTATION BOX
-------------------------------------------------
-local mutationBox = Instance.new("TextBox")
-mutationBox.Parent = main
-mutationBox.Size = UDim2.new(0.14,0,0,40)
-mutationBox.Position = UDim2.new(0.75,0,0,55)
-mutationBox.PlaceholderText = "Mutation(none)"
-mutationBox.Text = ""
-mutationBox.Font = Enum.Font.Gotham
-mutationBox.TextSize = 16
-mutationBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-mutationBox.TextColor3 = Color3.new(1,1,1)
-mutationBox.BorderSizePixel = 0
-Instance.new("UICorner",mutationBox)
-
-----------------------------------------------------------------
--- ADD BUTTON
-----------------------------------------------------------------
-local addBtn = Instance.new("TextButton")
-addBtn.Parent = main
-addBtn.Size = UDim2.new(0.09,0,0,40)
-addBtn.Position = UDim2.new(0.90,0,0,55)
-addBtn.Text = "ADD"
-addBtn.Font = Enum.Font.GothamBold
-addBtn.TextSize = 15
-addBtn.BackgroundColor3 = Color3.fromRGB(0,170,90)
-addBtn.TextColor3 = Color3.new(1,1,1)
-addBtn.BorderSizePixel = 0
-Instance.new("UICorner",addBtn)
-
-----------------------------------------------------------------
--- INFO
-----------------------------------------------------------------
-local info = Instance.new("TextLabel")
-info.Parent = main
-info.Size = UDim2.new(0.30,0,0,25)
-info.Position = UDim2.new(0.67,0,0,20)
-info.TextXAlignment = Enum.TextXAlignment.Right
-info.BackgroundTransparency = 1
-info.Text = "READY"
-info.Font = Enum.Font.GothamBold
-info.TextSize = 14
-info.TextColor3 = Color3.new(1,1,1)
-
-----------------------------------------------------------------
--- SEARCH RESULT
-----------------------------------------------------------------
-local resultFrame = Instance.new("ScrollingFrame")
-resultFrame.Parent = main
-resultFrame.Position = UDim2.new(0.02,0,0,105)
-resultFrame.Size = UDim2.new(0.30,0,1,-180)
-resultFrame.CanvasSize = UDim2.new(0,0,0,0)
-resultFrame.ScrollBarThickness = 5
-resultFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-resultFrame.BorderSizePixel = 0
-Instance.new("UICorner",resultFrame)
-
-local resultLayout = Instance.new("UIListLayout")
-resultLayout.Parent = resultFrame
-resultLayout.Padding = UDim.new(0,4)
-
-----------------------------------------------------------------
--- ADDED LIST
-----------------------------------------------------------------
-local listFrame = Instance.new("ScrollingFrame")
-listFrame.Parent = main
-listFrame.Position = UDim2.new(0.34,0,0,105)
-listFrame.Size = UDim2.new(0.64,0,1,-180)
-listFrame.CanvasSize = UDim2.new(0,0,0,0)
-listFrame.ScrollBarThickness = 8
-listFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-listFrame.BorderSizePixel = 0
-Instance.new("UICorner",listFrame)
-
-local listLayout = Instance.new("UIListLayout")
-listLayout.Parent = listFrame
-listLayout.Padding = UDim.new(0,5)
-
-----------------------------------------------------------------
--- DATA
-----------------------------------------------------------------
-local selectedPet = nil
-local petDataList = loadSettings()
-local selectedFindSellerPet = loadFindSellerTarget()
-
-----------------------------------------------------------------
--- UPDATE CANVAS
-----------------------------------------------------------------
-local function updateCanvas()
-
-	resultFrame.CanvasSize = UDim2.new(
-		0,
-		0,
-		0,
-		resultLayout.AbsoluteContentSize.Y + 10
-	)
-
-	listFrame.CanvasSize = UDim2.new(
-		0,
-		0,
-		0,
-		listLayout.AbsoluteContentSize.Y + 10
-	)
+    Columns[i] =
+        Column
 
 end
 
-resultLayout:GetPropertyChangedSignal(
-	"AbsoluteContentSize"
-):Connect(updateCanvas)
 
-listLayout:GetPropertyChangedSignal(
-	"AbsoluteContentSize"
-):Connect(updateCanvas)
+local ConfigBoxes = {}
 
 
-----------------------------------------------------------------
--- REFRESH LIST
-----------------------------------------------------------------
-local function refreshPetList()
-
-	for _,v in ipairs(listFrame:GetChildren()) do
-
-		if v:IsA("Frame") then
-			v:Destroy()
-		end
-
-	end
-
-	for i,data in ipairs(petDataList) do
-
-		local container = Instance.new("Frame")
-		container.Parent = listFrame
-		container.Size = UDim2.new(1,-8,0,38)
-		container.BackgroundColor3 = Color3.fromRGB(40,40,40)
-		container.BorderSizePixel = 0
-		Instance.new("UICorner",container)
-
-		local nameBtn = Instance.new("TextButton")
-		nameBtn.Parent = container
-		nameBtn.Size = UDim2.new(0.58,0,1,0)
-		nameBtn.Position = UDim2.new(0.03,0,0,0)
-		nameBtn.BackgroundTransparency = 1
-		nameBtn.TextXAlignment = Enum.TextXAlignment.Left
-		nameBtn.Font = Enum.Font.GothamBold
-		nameBtn.TextSize = 13
-		nameBtn.Text =
-			data.pet..
-			" | $"..tostring(data.price)..
-			" | KG:"..tostring(data.minWeight or 0.1)..
-			" | LV:"..tostring(data.minLevel or 1)..
-			" | M:"..(
-				(data.mutation ~= nil and data.mutation ~= "")
-				and data.mutation
-				or "Any"
-			)
-
-		if selectedFindSellerPet == data.pet then
-			nameBtn.TextColor3 = Color3.fromRGB(0,255,100)
-		else
-			nameBtn.TextColor3 = Color3.new(1,1,1)
-		end
-
-		nameBtn.Activated:Connect(function()
-
-			selectedFindSellerPet = data.pet
-
-			saveFindSellerTarget(data.pet)
-
-			info.Text = "FindSeller : "..data.pet
-
-			refreshPetList()
-
-		end)
-
-		local pBox = Instance.new("TextBox")
-		pBox.Parent = container
-		pBox.Size = UDim2.new(0.22,0,0.75,0)
-		pBox.Position = UDim2.new(0.60,0,0.125,0)
-		pBox.Text = tostring(data.price)
-		pBox.Font = Enum.Font.GothamBold
-		pBox.TextSize = 13
-		pBox.BackgroundColor3 = Color3.fromRGB(55,55,55)
-		pBox.TextColor3 = Color3.fromRGB(0,255,100)
-		pBox.BorderSizePixel = 0
-		Instance.new("UICorner",pBox)
-
-		pBox.FocusLost:Connect(function()
-
-			local num = tonumber(pBox.Text)
-
-			if not num then
-				pBox.Text = tostring(data.price)
-				return
-			end
-
-			data.price = num
-
-			saveSettings(petDataList)
-
-		end)
-
-		local removeBtn = Instance.new("TextButton")
-		removeBtn.Parent = container
-		removeBtn.Size = UDim2.new(0,28,0,28)
-		removeBtn.Position = UDim2.new(1,-35,0.5,-14)
-		removeBtn.Text = "-"
-		removeBtn.Font = Enum.Font.GothamBold
-		removeBtn.TextSize = 18
-		removeBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
-		removeBtn.TextColor3 = Color3.new(1,1,1)
-		removeBtn.BorderSizePixel = 0
-		Instance.new("UICorner",removeBtn)
-
-		removeBtn.Activated:Connect(function()
-
-			table.remove(petDataList,i)
-
-			saveSettings(petDataList)
-
-			refreshPetList()
-
-		end)
-
-	end
-
-	updateCanvas()
-
-end
-
-refreshPetList()
-
-----------------------------------------------------------------
--- CLEAR RESULT
-----------------------------------------------------------------
-local function clearResults()
-
-	for _,v in ipairs(resultFrame:GetChildren()) do
-
-		if v:IsA("TextButton") then
-			v:Destroy()
-		end
-
-	end
-
-end
-
-----------------------------------------------------------------
--- SEARCH
-----------------------------------------------------------------
-local function refreshSearch()
-
-	clearResults()
-
-	local text = searchBox.Text:lower()
-
-	if text == "" then
-		return
-	end
-
-	------------------------------------------------
-	-- EGG GROUP
-	------------------------------------------------
-	for eggName,_ in pairs(EggGroups) do
-
-		if string.find(eggName:lower(),text) then
-
-			local btn = Instance.new("TextButton")
-			btn.Parent = resultFrame
-			btn.Size = UDim2.new(1,-5,0,30)
-			btn.Text = "[EGG] "..eggName
-			btn.Font = Enum.Font.GothamBold
-			btn.TextSize = 14
-			btn.BackgroundColor3 = Color3.fromRGB(80,60,20)
-			btn.TextColor3 = Color3.fromRGB(255,220,100)
-			btn.BorderSizePixel = 0
-			Instance.new("UICorner",btn)
-
-			btn.Activated:Connect(function()
-
-				selectedPet = eggName
-				searchBox.Text = eggName
-
-				clearResults()
-
-			end)
-
-		end
-
-	end
-
-	------------------------------------------------
-	-- PET LIST
-	------------------------------------------------
-	local count = 0
-
-	for petName,_ in pairs(PetList) do
-
-		if string.find(petName:lower(),text) then
-
-			count += 1
-
-			if count > 70 then
-				break
-			end
-
-			local btn = Instance.new("TextButton")
-			btn.Parent = resultFrame
-			btn.Size = UDim2.new(1,-5,0,30)
-			btn.Text = petName
-			btn.Font = Enum.Font.Gotham
-			btn.TextSize = 14
-			btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
-			btn.TextColor3 = Color3.new(1,1,1)
-			btn.BorderSizePixel = 0
-			Instance.new("UICorner",btn)
-
-			btn.Activated:Connect(function()
-
-				selectedPet = petName
-				searchBox.Text = petName
-
-				clearResults()
-
-			end)
-
-		end
-
-	end
-
-	updateCanvas()
-
-end
-
-searchBox:GetPropertyChangedSignal(
-	"Text"
-):Connect(refreshSearch)
-
-----------------------------------------------------------------
--- ADD PET
-----------------------------------------------------------------
-addBtn.Activated:Connect(function()
-
-	local pet = selectedPet or searchBox.Text
-	local price = tonumber(priceBox.Text) or 1
-
-	if pet == "" or not price then
-		info.Text = "Input Pet & Price"
-		return
-	end
-
-	table.insert(petDataList,{
-	pet = pet,
-	price = price,
-	mutation = mutationBox.Text or "",
-	minWeight = tonumber(minWeightBox.Text) or 0.1,
-	minLevel = tonumber(minLevelBox.Text) or 1
-	})
-
-	saveSettings(petDataList)
-
-	refreshPetList()
-
-	searchBox.Text = ""
-	priceBox.Text = ""
-	selectedPet = nil
-
-	info.Text = "Added "..pet
-
-end)
-
-----------------------------------------------------------------
--- FIND SELLER REMOTE
-----------------------------------------------------------------
-
-local RAPUtil = require(
-	ReplicatedStorage.Modules.TradeTokens.TokenRAPUtil
+local function CreateConfigBox(
+    Parent,
+    Key,
+    DisplayName,
+    Order
 )
 
-local TokenRAPs =
-	ReplicatedStorage.GameEvents.TradeEvents.TokenRAPs
+    local Frame =
+        Instance.new(
+            "Frame"
+        )
 
-local FindSellers =
-	TokenRAPs:WaitForChild("FindSellers")
+    Frame.Size =
+        UDim2.new(
+            1,
+            -3,
+            0,
+            31
+        )
 
-local TeleportToListing =
-	TokenRAPs:WaitForChild("TeleportToListing")
+    Frame.Position =
+        UDim2.new(
+            0,
+            1,
+            0,
+            (Order - 1) * 34
+        )
 
-----------------------------------------------------------------
--- FIND SELLER STATE
-----------------------------------------------------------------
+    Frame.BackgroundColor3 =
+        Color3.fromRGB(
+            35,
+            35,
+            35
+        )
 
-local teleportingSeller = false
+    Frame.BorderSizePixel =
+        0
 
-local function clearFindSellerState()
-	getgenv().FindSellerListingId = nil
-	getgenv().FindSellerPet = nil
+    Frame.Parent =
+        Parent
+
+
+    local Corner =
+        Instance.new(
+            "UICorner"
+        )
+
+    Corner.CornerRadius =
+        UDim.new(
+            0,
+            4
+        )
+
+    Corner.Parent =
+        Frame
+
+
+    local Label =
+        Instance.new(
+            "TextLabel"
+        )
+
+    Label.Size =
+        UDim2.new(
+            1,
+            -6,
+            0,
+            13
+        )
+
+    Label.Position =
+        UDim2.new(
+            0,
+            3,
+            0,
+            2
+        )
+
+    Label.BackgroundTransparency =
+        1
+
+    Label.Text =
+        DisplayName
+
+    Label.TextColor3 =
+        Color3.fromRGB(
+            175,
+            175,
+            175
+        )
+
+    Label.TextSize =
+        8
+
+    Label.Font =
+        Enum.Font.Gotham
+
+    Label.TextXAlignment =
+        Enum.TextXAlignment.Left
+
+    Label.Parent =
+        Frame
+
+
+    local Box =
+        Instance.new(
+            "TextBox"
+        )
+
+    Box.Size =
+        UDim2.new(
+            1,
+            -6,
+            0,
+            14
+        )
+
+    Box.Position =
+        UDim2.new(
+            0,
+            3,
+            0,
+            15
+        )
+
+    Box.BackgroundColor3 =
+        Color3.fromRGB(
+            15,
+            15,
+            15
+        )
+
+    Box.TextColor3 =
+        Color3.fromRGB(
+            255,
+            255,
+            255
+        )
+
+    Box.Text =
+        tostring(
+            Config[Key]
+        )
+
+    Box.TextSize =
+        8
+
+    Box.Font =
+        Enum.Font.GothamBold
+
+    Box.ClearTextOnFocus =
+        false
+
+    Box.BorderSizePixel =
+        0
+
+    Box.Parent =
+        Frame
+
+
+    local BoxCorner =
+        Instance.new(
+            "UICorner"
+        )
+
+    BoxCorner.CornerRadius =
+        UDim.new(
+            0,
+            3
+        )
+
+    BoxCorner.Parent =
+        Box
+
+
+    ConfigBoxes[Key] =
+        Box
+
+
+    Box.FocusLost:Connect(function()
+
+        local Number =
+            tonumber(
+                Box.Text
+            )
+
+        if Number == nil then
+
+            Box.Text =
+                tostring(
+                    Config[Key]
+                )
+
+            return
+
+        end
+
+
+        if Number < 0 then
+            Number = 0
+        end
+
+
+        Config[Key] =
+            Number
+
+
+        Box.Text =
+            tostring(
+                Number
+            )
+
+
+        SaveConfig()
+
+    end)
+
 end
 
-----------------------------------------------------------------
--- READ LISTING AFTER TELEPORT
-----------------------------------------------------------------
 
-local function readFindSellerListing()
-	local listingId = getgenv().FindSellerListingId
-	local targetPet = getgenv().FindSellerPet
+--==================================================
+-- COLUMN 1
+--==================================================
 
-	if not listingId then
-		return nil
-	end
+CreateConfigBox(
+    Columns[1],
+    "LOOP_DELAY",
+    "Loop Delay",
+    1
+)
 
-	print("================================")
-	print("READ FIND SELLER LISTING")
-	print("================================")
-	print("Target Pet:", targetPet)
-	print("Listing ID:", listingId)
+CreateConfigBox(
+    Columns[1],
+    "EQUIP_DELAY",
+    "Equip Pet Delay",
+    2
+)
 
-	info.Text = "Reading seller data..."
+CreateConfigBox(
+    Columns[1],
+    "AFTER_EQUIP_WAIT",
+    "Equip Pet Wait",
+    3
+)
 
-	local data
 
-	for attempt = 1, 50 do
-		local ok, result = pcall(function()
-			return BoothsReplication:GetDataAsync()
-		end)
+--==================================================
+-- COLUMN 2
+--==================================================
 
-		if ok and result and result.Booths and result.Players then
-			data = result
-			break
-		end
+CreateConfigBox(
+    Columns[2],
+    "TARGET_LIMIT",
+    "Target Sell If Trash",
+    1
+)
 
-		task.wait(0.2)
-	end
+CreateConfigBox(
+    Columns[2],
+    "MAX_EGG",
+    "Max Egg",
+    2
+)
 
-	if not data then
-		warn("Booths data belum tersedia")
-		info.Text = "Booths data unavailable"
-		return nil
-	end
+CreateConfigBox(
+    Columns[2],
+    "SELL_KG_LIMIT",
+    "Sell KG",
+    3
+)
 
-	for boothUUID, booth in pairs(data.Booths or {}) do
-		local ownerId = booth.Owner
 
-		if ownerId then
-			local playerData = data.Players[ownerId]
+--==================================================
+-- COLUMN 3
+--==================================================
 
-			if playerData and playerData.Listings then
-				local listing = playerData.Listings[listingId]
+CreateConfigBox(
+    Columns[3],
+    "BALD_TARGET",
+    "Bald Target",
+    1
+)
 
-				if listing then
-					local item =
-						playerData.Items
-						and playerData.Items[listing.ItemId]
+CreateConfigBox(
+    Columns[3],
+    "MIMIC_TARGET",
+    "Mimic Target",
+    2
+)
 
-					print("================================")
-					print("LISTING FOUND")
-					print("================================")
-					print("Booth UUID:", boothUUID)
-					print("Owner ID:", ownerId)
-					print("Listing ID:", listingId)
-					print("Item ID:", listing.ItemId)
-					print("Item Type:", listing.ItemType)
-					print("PRICE:", listing.Price)
+CreateConfigBox(
+    Columns[3],
+    "PLACE_BATCH",
+    "Place Egg",
+    3
+)
 
-					if item then
-						print("PetType:", item.PetType)
-						print("Name:", item.Name)
 
-						if item.PetData then
-							print(
-								"Mutation:",
-								item.PetData.MutationType
-							)
+--==================================================
+-- COLUMN 4
+--==================================================
 
-							print(
-								"Level:",
-								item.PetData.Level
-							)
+CreateConfigBox(
+    Columns[4],
+    "BRONTO_TARGET",
+    "Bronto Target",
+    1
+)
 
-							print(
-								"Weight:",
-								item.PetData.BaseWeight
-							)
-						end
-					end
+CreateConfigBox(
+    Columns[4],
+    "KOI_TARGET",
+    "Koi Target",
+    2
+)
 
-					info.Text =
-						("SELLER FOUND | $%s")
-						:format(tostring(listing.Price))
+CreateConfigBox(
+    Columns[4],
+    "SEAL_TARGET",
+    "Seal Target",
+    3
+)
 
-					local result = {
-						boothUUID = boothUUID,
-						ownerId = ownerId,
-						listingId = listingId,
-						listing = listing,
-						item = item,
-						price = listing.Price
-					}
 
-					clearFindSellerState()
+--==================================================
+-- PET SELECTOR
+--==================================================
 
-					return result
-				end
-			end
-		end
-	end
+local PetSelector =
+    Instance.new(
+        "Frame"
+    )
 
-	warn(
-		"Listing ID tidak ditemukan:",
-		listingId
-	)
+PetSelector.Size =
+    UDim2.new(
+        1,
+        -10,
+        0,
+        65
+    )
 
-	info.Text = "Listing not found"
+PetSelector.Position =
+    UDim2.new(
+        0,
+        5,
+        0,
+        155
+    )
 
-	return nil
+PetSelector.BackgroundColor3 =
+    Color3.fromRGB(
+        25,
+        25,
+        25
+    )
+
+PetSelector.BorderSizePixel =
+    0
+
+PetSelector.Parent =
+    Main
+
+
+local PetSelectorCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+PetSelectorCorner.CornerRadius =
+    UDim.new(
+        0,
+        5
+    )
+
+PetSelectorCorner.Parent =
+    PetSelector
+
+
+--==================================================
+-- SEARCH BOX
+--==================================================
+
+local SearchBox =
+    Instance.new(
+        "TextBox"
+    )
+
+SearchBox.Size =
+    UDim2.new(
+        1,
+        -80,
+        0,
+        25
+    )
+
+SearchBox.Position =
+    UDim2.new(
+        0,
+        5,
+        0,
+        5
+    )
+
+SearchBox.BackgroundColor3 =
+    Color3.fromRGB(
+        40,
+        40,
+        40
+    )
+
+SearchBox.Text =
+    "SELECT PET / SEARCH"
+
+SearchBox.PlaceholderText =
+    "Search pet..."
+
+SearchBox.TextColor3 =
+    Color3.fromRGB(
+        255,
+        255,
+        255
+    )
+
+SearchBox.PlaceholderColor3 =
+    Color3.fromRGB(
+        130,
+        130,
+        130
+    )
+
+SearchBox.TextSize =
+    9
+
+SearchBox.Font =
+    Enum.Font.GothamBold
+
+SearchBox.ClearTextOnFocus =
+    true
+
+SearchBox.BorderSizePixel =
+    0
+
+SearchBox.Parent =
+    PetSelector
+
+
+local SearchCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+SearchCorner.CornerRadius =
+    UDim.new(
+        0,
+        4
+    )
+
+SearchCorner.Parent =
+    SearchBox
+
+
+--==================================================
+-- ADD
+--==================================================
+
+local AddButton =
+    Instance.new(
+        "TextButton"
+    )
+
+AddButton.Size =
+    UDim2.new(
+        0,
+        65,
+        0,
+        25
+    )
+
+AddButton.Position =
+    UDim2.new(
+        1,
+        -70,
+        0,
+        5
+    )
+
+AddButton.BackgroundColor3 =
+    Color3.fromRGB(
+        40,
+        120,
+        60
+    )
+
+AddButton.Text =
+    "ADD"
+
+AddButton.TextColor3 =
+    Color3.fromRGB(
+        255,
+        255,
+        255
+    )
+
+AddButton.TextSize =
+    9
+
+AddButton.Font =
+    Enum.Font.GothamBold
+
+AddButton.BorderSizePixel =
+    0
+
+AddButton.Parent =
+    PetSelector
+
+
+local AddCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+AddCorner.CornerRadius =
+    UDim.new(
+        0,
+        4
+    )
+
+AddCorner.Parent =
+    AddButton
+
+
+--==================================================
+-- DROPDOWN
+--==================================================
+
+local DropdownList =
+    Instance.new(
+        "ScrollingFrame"
+    )
+
+DropdownList.Size =
+    UDim2.new(
+        1,
+        -80,
+        0,
+        100
+    )
+
+DropdownList.Position =
+    UDim2.new(
+        0,
+        5,
+        0,
+        32
+    )
+
+DropdownList.BackgroundColor3 =
+    Color3.fromRGB(
+        12,
+        12,
+        12
+    )
+
+DropdownList.BorderSizePixel =
+    0
+
+DropdownList.ScrollBarThickness =
+    3
+
+DropdownList.Visible =
+    false
+
+DropdownList.ZIndex =
+    50
+
+DropdownList.CanvasSize =
+    UDim2.new(
+        0,
+        0,
+        0,
+        0
+    )
+
+DropdownList.Parent =
+    PetSelector
+
+
+local DropdownLayout =
+    Instance.new(
+        "UIListLayout"
+    )
+
+DropdownLayout.Padding =
+    UDim.new(
+        0,
+        2
+    )
+
+DropdownLayout.Parent =
+    DropdownList
+
+
+--==================================================
+-- SELECTED TITLE
+--==================================================
+
+local SelectedTitle =
+    Instance.new(
+        "TextLabel"
+    )
+
+SelectedTitle.Size =
+    UDim2.new(
+        1,
+        -10,
+        0,
+        15
+    )
+
+SelectedTitle.Position =
+    UDim2.new(
+        0,
+        5,
+        0,
+        225
+    )
+
+SelectedTitle.BackgroundTransparency =
+    1
+
+SelectedTitle.Text =
+    "COUNT + SELL PET"
+
+SelectedTitle.TextColor3 =
+    Color3.fromRGB(
+        180,
+        180,
+        180
+    )
+
+SelectedTitle.TextSize =
+    8
+
+SelectedTitle.Font =
+    Enum.Font.GothamBold
+
+SelectedTitle.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+SelectedTitle.Parent =
+    Main
+
+
+--==================================================
+-- TARGET COUNT
+--==================================================
+
+local TargetCountLabel =
+    Instance.new(
+        "TextLabel"
+    )
+
+TargetCountLabel.Size =
+    UDim2.new(
+        0,
+        120,
+        0,
+        15
+    )
+
+TargetCountLabel.Position =
+    UDim2.new(
+        1,
+        -125,
+        0,
+        225
+    )
+
+TargetCountLabel.BackgroundTransparency =
+    1
+
+TargetCountLabel.Text =
+    "TARGET: 0"
+
+TargetCountLabel.TextColor3 =
+    Color3.fromRGB(
+        120,
+        200,
+        140
+    )
+
+TargetCountLabel.TextSize =
+    8
+
+TargetCountLabel.Font =
+    Enum.Font.GothamBold
+
+TargetCountLabel.TextXAlignment =
+    Enum.TextXAlignment.Right
+
+TargetCountLabel.Parent =
+    Main
+
+
+--==================================================
+-- SELECTED FRAME
+--==================================================
+
+local SelectedFrame =
+    Instance.new(
+        "ScrollingFrame"
+    )
+
+SelectedFrame.Size =
+    UDim2.new(
+        1,
+        -10,
+        0,
+        75
+    )
+
+SelectedFrame.Position =
+    UDim2.new(
+        0,
+        5,
+        0,
+        242
+    )
+
+SelectedFrame.BackgroundColor3 =
+    Color3.fromRGB(
+        12,
+        12,
+        12
+    )
+
+SelectedFrame.BorderSizePixel =
+    0
+
+SelectedFrame.ScrollBarThickness =
+    3
+
+SelectedFrame.CanvasSize =
+    UDim2.new(
+        0,
+        0,
+        0,
+        0
+    )
+
+SelectedFrame.Parent =
+    Main
+
+
+local SelectedCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+SelectedCorner.CornerRadius =
+    UDim.new(
+        0,
+        5
+    )
+
+SelectedCorner.Parent =
+    SelectedFrame
+
+
+local SelectedLayout =
+    Instance.new(
+        "UIListLayout"
+    )
+
+SelectedLayout.Padding =
+    UDim.new(
+        0,
+        2
+    )
+
+SelectedLayout.Parent =
+    SelectedFrame
+
+
+--==================================================
+-- LOG FRAME
+--==================================================
+
+local LogFrame =
+    Instance.new(
+        "Frame"
+    )
+
+LogFrame.Size =
+    UDim2.new(
+        1,
+        -10,
+        0,
+        105
+    )
+
+LogFrame.Position =
+    UDim2.new(
+        0,
+        5,
+        0,
+        320
+    )
+
+LogFrame.BackgroundColor3 =
+    Color3.fromRGB(
+        12,
+        12,
+        12
+    )
+
+LogFrame.BorderSizePixel =
+    0
+
+LogFrame.Parent =
+    Main
+
+
+local LogCorner =
+    Instance.new(
+        "UICorner"
+    )
+
+LogCorner.CornerRadius =
+    UDim.new(
+        0,
+        5
+    )
+
+LogCorner.Parent =
+    LogFrame
+
+
+local Scroll =
+    Instance.new(
+        "ScrollingFrame"
+    )
+
+Scroll.Size =
+    UDim2.new(
+        1,
+        -8,
+        1,
+        -8
+    )
+
+Scroll.Position =
+    UDim2.new(
+        0,
+        4,
+        0,
+        4
+    )
+
+Scroll.BackgroundTransparency =
+    1
+
+Scroll.BorderSizePixel =
+    0
+
+Scroll.ScrollBarThickness =
+    3
+
+Scroll.CanvasSize =
+    UDim2.new(
+        0,
+        0,
+        0,
+        0
+    )
+
+Scroll.Parent =
+    LogFrame
+
+
+local Layout =
+    Instance.new(
+        "UIListLayout"
+    )
+
+Layout.Padding =
+    UDim.new(
+        0,
+        1
+    )
+
+Layout.Parent =
+    Scroll
+
+
+--==================================================
+-- LOG
+--==================================================
+
+local MAX_LOGS =
+    40
+
+local LogObjects = {}
+
+local LastLog =
+    ""
+
+local LastLogTime =
+    0
+
+
+local function Log(...)
+
+    local Args =
+        {...}
+
+    local Message =
+        ""
+
+    for i, Value in ipairs(
+        Args
+    ) do
+
+        if i > 1 then
+            Message =
+                Message .. " "
+        end
+
+        Message =
+            Message .. tostring(Value)
+
+    end
+
+
+    local Now =
+        os.clock()
+
+
+    if Message == LastLog
+        and Now - LastLogTime < 1 then
+
+        return
+
+    end
+
+
+    LastLog =
+        Message
+
+    LastLogTime =
+        Now
+
+
+    print(
+        "[AUTOHATCH]",
+        Message
+    )
+
+
+    local Label =
+        Instance.new(
+            "TextLabel"
+        )
+
+    Label.Size =
+        UDim2.new(
+            1,
+            -5,
+            0,
+            14
+        )
+
+    Label.BackgroundTransparency =
+        1
+
+    Label.Text =
+        Message
+
+    Label.TextColor3 =
+        Color3.fromRGB(
+            205,
+            205,
+            205
+        )
+
+    Label.TextSize =
+        8
+
+    Label.Font =
+        Enum.Font.Code
+
+    Label.TextXAlignment =
+        Enum.TextXAlignment.Left
+
+    Label.Parent =
+        Scroll
+
+
+    table.insert(
+        LogObjects,
+        Label
+    )
+
+
+    while #LogObjects > MAX_LOGS do
+
+        local Old =
+            table.remove(
+                LogObjects,
+                1
+            )
+
+        if Old then
+            Old:Destroy()
+        end
+
+    end
+
+
+    task.defer(function()
+
+        Scroll.CanvasSize =
+            UDim2.new(
+                0,
+                0,
+                0,
+                Layout.AbsoluteContentSize.Y
+                    + 5
+            )
+
+        Scroll.CanvasPosition =
+            Vector2.new(
+                0,
+                math.max(
+                    0,
+                    Layout.AbsoluteContentSize.Y
+                        - Scroll.AbsoluteSize.Y
+                )
+            )
+
+    end)
+
 end
 
-----------------------------------------------------------------
--- TELEPORT TO SELLER
-----------------------------------------------------------------
 
-local function teleportToSeller(selectedPet)
+--==================================================
+-- STATE
+--==================================================
 
-	if teleportingSeller then
-		return
-	end
+local function SetState(State)
 
-	teleportingSeller = true
+    if CurrentState == State then
+        return
+    end
 
-	---------------------------------------------------
-	-- EGG -> FIRST PET
-	---------------------------------------------------
+    CurrentState =
+        State
 
-	selectedPet = getFindSellerPet(selectedPet)
+    StateLabel.Text =
+        State
 
-	if not selectedPet or selectedPet == "" then
-		teleportingSeller = false
-		return
-	end
+    Log(
+        "STATE →",
+        State
+    )
 
-	info.Text =
-		"Finding seller: " .. selectedPet
-
-	---------------------------------------------------
-	-- GET DEFAULT ITEM DATA
-	---------------------------------------------------
-
-	local dataOK, itemData = pcall(function()
-		return RAPUtil.GetDefaultItemData(
-			"Pet",
-			selectedPet
-		)
-	end)
-
-	if not dataOK or not itemData then
-		warn(
-			"GetDefaultItemData failed:",
-			itemData
-		)
-
-		info.Text = "Item data error"
-
-		teleportingSeller = false
-		return
-	end
-
-	---------------------------------------------------
-	-- FIND SELLER
-	---------------------------------------------------
-
-	local ok, found, listingId = pcall(function()
-		return FindSellers:InvokeServer(
-			"Pet",
-			itemData
-		)
-	end)
-
-	print("================================")
-	print("FIND SELLER")
-	print("================================")
-	print("OK:", ok)
-	print("FOUND:", found)
-	print("LISTING ID:", listingId)
-
-	if not ok then
-		warn(
-			"FindSellers error:",
-			found
-		)
-
-		info.Text = "FindSeller error"
-
-		teleportingSeller = false
-		return
-	end
-
-	if not found or not listingId then
-		info.Text =
-			"Seller not found: " .. selectedPet
-
-		teleportingSeller = false
-		return
-	end
-
-	---------------------------------------------------
-	-- SAVE STATE BEFORE TELEPORT
-	---------------------------------------------------
-
-	getgenv().FindSellerListingId = listingId
-	getgenv().FindSellerPet = selectedPet
-
-	print(
-		"Saved Listing ID:",
-		getgenv().FindSellerListingId
-	)
-
-	---------------------------------------------------
-	-- TELEPORT TO LISTING
-	---------------------------------------------------
-
-	info.Text =
-		"Teleporting to seller..."
-
-	local tpOK, tpResult = pcall(function()
-		return TeleportToListing:InvokeServer(
-			listingId,
-			true
-		)
-	end)
-
-	print("================================")
-	print("TELEPORT TO LISTING")
-	print("================================")
-	print("OK:", tpOK)
-	print("RESULT:", tpResult)
-
-	if not tpOK then
-		warn(
-			"TeleportToListing error:",
-			tpResult
-		)
-
-		info.Text = "Teleport failed"
-
-		clearFindSellerState()
-
-		teleportingSeller = false
-		return
-	end
-
-	info.Text =
-		"Teleported to " .. selectedPet
-
-	teleportingSeller = false
 end
 
-----------------------------------------------------------------
--- READ PENDING FIND SELLER AFTER SERVER LOAD
-----------------------------------------------------------------
+
+--==================================================
+-- UPDATE TOGGLE
+--==================================================
+
+local function UpdateToggle()
+
+    if Running then
+
+        Toggle.Text =
+            "ON"
+
+        Toggle.BackgroundColor3 =
+            Color3.fromRGB(
+                40,
+                130,
+                60
+            )
+
+    else
+
+        Toggle.Text =
+            "OFF"
+
+        Toggle.BackgroundColor3 =
+            Color3.fromRGB(
+                100,
+                40,
+                40
+            )
+
+    end
+
+
+    SaveConfig()
+
+end
+
+
+--==================================================
+-- MINIMIZE
+--==================================================
+
+local Minimized =
+    false
+
+
+local NormalSize =
+    UDim2.new(
+        0,
+        340,
+        0,
+        430
+    )
+
+
+local MiniSize =
+    UDim2.new(
+        0,
+        250,
+        0,
+        30
+    )
+
+
+Minimize.MouseButton1Click:Connect(function()
+
+    Minimized =
+        not Minimized
+
+
+    if Minimized then
+
+        Main.Size =
+            MiniSize
+
+        ConfigFrame.Visible =
+            false
+
+        PetSelector.Visible =
+            false
+
+        SelectedTitle.Visible =
+            false
+
+        TargetCountLabel.Visible =
+            false
+
+        SelectedFrame.Visible =
+            false
+
+        LogFrame.Visible =
+            false
+
+        Minimize.Text =
+            "+"
+
+    else
+
+        Main.Size =
+            NormalSize
+
+        ConfigFrame.Visible =
+            true
+
+        PetSelector.Visible =
+            true
+
+        SelectedTitle.Visible =
+            true
+
+        TargetCountLabel.Visible =
+            true
+
+        SelectedFrame.Visible =
+            true
+
+        LogFrame.Visible =
+            true
+
+        Minimize.Text =
+            "−"
+
+    end
+
+end)
+
+
+--==================================================
+-- DRAG
+--==================================================
+
+local Dragging =
+    false
+
+local DragStart =
+    nil
+
+local StartPos =
+    nil
+
+
+Header.InputBegan:Connect(function(Input)
+
+    if Input.UserInputType ==
+        Enum.UserInputType.MouseButton1 then
+
+        Dragging =
+            true
+
+        DragStart =
+            Input.Position
+
+        StartPos =
+            Main.Position
+
+    end
+
+end)
+
+
+Header.InputEnded:Connect(function(Input)
+
+    if Input.UserInputType ==
+        Enum.UserInputType.MouseButton1 then
+
+        Dragging =
+            false
+
+    end
+
+end)
+
+
+UIS.InputChanged:Connect(function(Input)
+
+    if not Dragging then
+        return
+    end
+
+    if Input.UserInputType ~=
+        Enum.UserInputType.MouseMovement then
+
+        return
+
+    end
+
+    if not DragStart
+        or not StartPos then
+
+        return
+
+    end
+
+
+    local Delta =
+        Input.Position
+        - DragStart
+
+
+    Main.Position =
+        UDim2.new(
+
+            StartPos.X.Scale,
+
+            StartPos.X.Offset
+                + Delta.X,
+
+            StartPos.Y.Scale,
+
+            StartPos.Y.Offset
+                + Delta.Y
+
+        )
+
+end)
+
+
+--==================================================
+-- SELECTED PET
+--==================================================
+
+local function IsSelected(PetName)
+
+    for _, Name in ipairs(
+        SelectedPets
+    ) do
+
+        if Name == PetName then
+            return true
+        end
+
+    end
+
+    return false
+
+end
+
+
+local function UpdateSelectedPets()
+
+    for _, Object in ipairs(
+        SelectedFrame:GetChildren()
+    ) do
+
+        if Object:IsA("Frame") then
+            Object:Destroy()
+        end
+
+    end
+
+
+    for _, PetName in ipairs(
+        SelectedPets
+    ) do
+
+        local Row =
+            Instance.new(
+                "Frame"
+            )
+
+        Row.Size =
+            UDim2.new(
+                1,
+                -5,
+                0,
+                20
+            )
+
+        Row.BackgroundColor3 =
+            Color3.fromRGB(
+                30,
+                30,
+                30
+            )
+
+        Row.BorderSizePixel =
+            0
+
+        Row.Parent =
+            SelectedFrame
+
+
+        local NameLabel =
+            Instance.new(
+                "TextLabel"
+            )
+
+        NameLabel.Size =
+            UDim2.new(
+                1,
+                -60,
+                1,
+                0
+            )
+
+        NameLabel.Position =
+            UDim2.new(
+                0,
+                6,
+                0,
+                0
+            )
+
+        NameLabel.BackgroundTransparency =
+            1
+
+        NameLabel.Text =
+            "• " .. PetName
+
+        NameLabel.TextColor3 =
+            Color3.fromRGB(
+                230,
+                230,
+                230
+            )
+
+        NameLabel.TextSize =
+            8
+
+        NameLabel.Font =
+            Enum.Font.Gotham
+
+        NameLabel.TextXAlignment =
+            Enum.TextXAlignment.Left
+
+        NameLabel.Parent =
+            Row
+
+
+        local Remove =
+            Instance.new(
+                "TextButton"
+            )
+
+        Remove.Size =
+            UDim2.new(
+                0,
+                48,
+                0,
+                16
+            )
+
+        Remove.Position =
+            UDim2.new(
+                1,
+                -53,
+                0.5,
+                -8
+            )
+
+        Remove.BackgroundColor3 =
+            Color3.fromRGB(
+                120,
+                40,
+                40
+            )
+
+        Remove.Text =
+            "X"
+
+        Remove.TextColor3 =
+            Color3.fromRGB(
+                255,
+                255,
+                255
+            )
+
+        Remove.TextSize =
+            8
+
+        Remove.Font =
+            Enum.Font.GothamBold
+
+        Remove.BorderSizePixel =
+            0
+
+        Remove.Parent =
+            Row
+
+
+        Remove.MouseButton1Click:Connect(function()
+
+            for i, Name in ipairs(
+                SelectedPets
+            ) do
+
+                if Name == PetName then
+
+                    table.remove(
+                        SelectedPets,
+                        i
+                    )
+
+                    break
+
+                end
+
+            end
+
+
+            SaveConfig()
+
+            UpdateSelectedPets()
+
+        end)
+
+    end
+
+
+    task.defer(function()
+
+        SelectedFrame.CanvasSize =
+            UDim2.new(
+                0,
+                0,
+                0,
+                SelectedLayout.AbsoluteContentSize.Y
+                    + 5
+            )
+
+    end)
+
+end
+
+
+--==================================================
+-- SEARCH
+--==================================================
+
+local function BuildSearchResults(Search)
+
+    for _, Object in ipairs(
+        DropdownList:GetChildren()
+    ) do
+
+        if Object:IsA("TextButton") then
+            Object:Destroy()
+        end
+
+    end
+
+
+    Search =
+        string.lower(
+            Search or ""
+        )
+
+
+    local Added =
+        0
+
+
+    for _, PetName in ipairs(
+        PetList
+    ) do
+
+        if Search == ""
+            or string.find(
+                string.lower(PetName),
+                Search,
+                1,
+                true
+            ) then
+
+            local Button =
+                Instance.new(
+                    "TextButton"
+                )
+
+            Button.Size =
+                UDim2.new(
+                    1,
+                    -5,
+                    0,
+                    20
+                )
+
+            Button.BackgroundColor3 =
+                Color3.fromRGB(
+                    35,
+                    35,
+                    35
+                )
+
+            Button.Text =
+                PetName
+
+            Button.TextColor3 =
+                Color3.fromRGB(
+                    230,
+                    230,
+                    230
+                )
+
+            Button.TextSize =
+                8
+
+            Button.Font =
+                Enum.Font.Gotham
+
+            Button.TextXAlignment =
+                Enum.TextXAlignment.Left
+
+            Button.BorderSizePixel =
+                0
+
+            Button.ZIndex =
+                51
+
+            Button.Parent =
+                DropdownList
+
+
+            local Padding =
+                Instance.new(
+                    "UIPadding"
+                )
+
+            Padding.PaddingLeft =
+                UDim.new(
+                    0,
+                    6
+                )
+
+            Padding.Parent =
+                Button
+
+
+            Button.MouseButton1Click:Connect(function()
+
+                SearchBox.Text =
+                    PetName
+
+                DropdownList.Visible =
+                    false
+
+            end)
+
+
+            Added +=
+                1
+
+
+            if Added >= 100 then
+                break
+            end
+
+        end
+
+    end
+
+
+    task.defer(function()
+
+        DropdownList.CanvasSize =
+            UDim2.new(
+                0,
+                0,
+                0,
+                DropdownLayout.AbsoluteContentSize.Y
+                    + 5
+            )
+
+    end)
+
+end
+
+
+SearchBox.Focused:Connect(function()
+
+    if SearchBox.Text ==
+        "SELECT PET / SEARCH" then
+
+        SearchBox.Text =
+            ""
+
+    end
+
+
+    BuildSearchResults(
+        SearchBox.Text
+    )
+
+
+    DropdownList.Visible =
+        true
+
+end)
+
+
+SearchBox:GetPropertyChangedSignal(
+    "Text"
+):Connect(function()
+
+    if SearchBox:IsFocused() then
+
+        BuildSearchResults(
+            SearchBox.Text
+        )
+
+        DropdownList.Visible =
+            true
+
+    end
+
+end)
+
+
+AddButton.MouseButton1Click:Connect(function()
+
+    local PetName =
+        SearchBox.Text
+
+
+    if not PetName
+        or PetName == ""
+        or PetName == "SELECT PET / SEARCH" then
+
+        Log(
+            "⚠ SELECT PET"
+        )
+
+        return
+
+    end
+
+
+    if not IsSelected(PetName) then
+
+        table.insert(
+            SelectedPets,
+            PetName
+        )
+
+        SaveConfig()
+
+        UpdateSelectedPets()
+
+        Log(
+            "ADD:",
+            PetName
+        )
+
+    else
+
+        Log(
+            "PET ALREADY SELECTED:",
+            PetName
+        )
+
+    end
+
+end)
+
+
+--==================================================
+-- FARM
+--==================================================
+
+local function GetMyFarm()
+
+    local FarmFolder =
+        workspace:WaitForChild(
+            "Farm"
+        )
+
+
+    for _, Farm in ipairs(
+        FarmFolder:GetChildren()
+    ) do
+
+        if Farm.Name == "Farm" then
+
+            local Important =
+                Farm:FindFirstChild(
+                    "Important"
+                )
+
+            if Important then
+
+                local Data =
+                    Important:FindFirstChild(
+                        "Data"
+                    )
+
+                if Data then
+
+                    local Owner =
+                        Data:FindFirstChild(
+                            "Owner"
+                        )
+
+                    if Owner
+                        and Owner:IsA("StringValue")
+                        and Owner.Value == LP.Name then
+
+                        return Farm
+
+                    end
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    return nil
+
+end
+
+
+local MyFarm =
+    GetMyFarm()
+
+
+if not MyFarm then
+
+    Log(
+        "FARM PLAYER NOT FOUND"
+    )
+
+    return
+
+end
+
+
+local Important =
+    MyFarm:WaitForChild(
+        "Important"
+    )
+
+local ObjectsPhysical =
+    Important:WaitForChild(
+        "Objects_Physical"
+    )
+
+local PlantLocations =
+    Important:WaitForChild(
+        "Plant_Locations"
+    )
+
+local CanPlant =
+    PlantLocations:WaitForChild(
+        "Can_Plant"
+    )
+
+
+--==================================================
+-- RANDOM POSITION
+--==================================================
+
+local function GetRandomPlantPosition()
+
+    local Size =
+        CanPlant.Size
+
+    local CF =
+        CanPlant.CFrame
+
+    local X =
+        (math.random() - 0.5)
+        * Size.X
+
+    local Z =
+        (math.random() - 0.5)
+        * Size.Z
+
+
+    return (
+        CF
+        * CFrame.new(
+            X,
+            Size.Y / 2,
+            Z
+        )
+    ).Position
+
+end
+
+
+--==================================================
+-- EGGS
+--==================================================
+
+local function GetEggs()
+
+    local Eggs = {}
+
+
+    for _, Object in ipairs(
+        ObjectsPhysical:GetChildren()
+    ) do
+
+        if Object:IsA("Model")
+            and Object.Name == "PetEgg" then
+
+            table.insert(
+                Eggs,
+                Object
+            )
+
+        end
+
+    end
+
+
+    return Eggs
+
+end
+
+
+local function GetEggCount()
+
+    return #GetEggs()
+
+end
+
+
+--==================================================
+-- SPRINGTIDE EGG
+--==================================================
+
+local function FindSpringtideEgg()
+
+    local Character =
+        LP.Character
+
+
+    for _, Container in ipairs({
+
+        Backpack,
+
+        Character
+
+    }) do
+
+        if Container then
+
+            for _, Tool in ipairs(
+                Container:GetChildren()
+            ) do
+
+                if Tool:IsA("Tool")
+                    and Tool:GetAttribute("h")
+                    == "Springtide Egg" then
+
+                    return Tool
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    return nil
+
+end
+
+
+--==================================================
+-- EQUIP EGG
+--==================================================
+
+local function EquipEgg()
+
+    local Egg =
+        FindSpringtideEgg()
+
+
+    if not Egg then
+
+        Log(
+            "SPRINGTIDE EGG NOT FOUND"
+        )
+
+        return nil
+
+    end
+
+
+    local Character =
+        LP.Character
+        or LP.CharacterAdded:Wait()
+
+
+    Egg.Parent =
+        Character
+
+
+    task.wait(
+        Config.EQUIP_DELAY
+    )
+
+
+    return Egg
+
+end
+
+
+--==================================================
+-- UNEQUIP ALL TOOLS
+--==================================================
+
+local function UnequipAllTools()
+
+    local Character =
+        LP.Character
+
+
+    if not Character then
+        return
+    end
+
+
+    for _, Tool in ipairs(
+        Character:GetChildren()
+    ) do
+
+        if Tool:IsA("Tool") then
+
+            Tool.Parent =
+                Backpack
+
+        end
+
+    end
+
+end
+
+
+--==================================================
+-- CREATE EGG
+--==================================================
+
+local function CreateEgg(Position)
+
+    PetEggService:FireServer(
+        "CreateEgg",
+        Position
+    )
+
+end
+
+
+--==================================================
+-- PET UTIL
+--==================================================
+
+local function IsPet(Tool)
+
+    return Tool:IsA("Tool")
+        and Tool:GetAttribute(
+            "ItemType"
+        ) == "Pet"
+
+end
+
+
+local function GetUUID(Tool)
+
+    return Tool:GetAttribute(
+        "PET_UUID"
+    )
+
+end
+
+
+local function GetKG(Tool)
+
+    local KG =
+        string.match(
+            Tool.Name,
+            "%[([%d%.]+)%s*[Kk][Gg]%]"
+        )
+
+
+    return tonumber(KG) or 0
+
+end
+
+
+--==================================================
+-- GET PETS
+--==================================================
+
+local function GetPets(SearchName)
+
+    local Result = {}
+
+
+    for _, Tool in ipairs(
+        Backpack:GetChildren()
+    ) do
+
+        if IsPet(Tool) then
+
+            if string.find(
+                string.lower(Tool.Name),
+                string.lower(SearchName),
+                1,
+                true
+            ) then
+
+                local UUID =
+                    GetUUID(Tool)
+
+
+                if UUID then
+
+                    table.insert(
+                        Result,
+                        {
+                            Tool = Tool,
+                            UUID = UUID,
+                            Name = Tool.Name,
+                            KG = GetKG(Tool)
+                        }
+                    )
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    table.sort(
+        Result,
+        function(A, B)
+
+            return A.KG > B.KG
+
+        end
+    )
+
+
+    return Result
+
+end
+
+
+--==================================================
+-- TARGET COUNT
+--==================================================
+
+local function GetTargetCount()
+
+    local Total =
+        0
+
+
+    for _, PetName in ipairs(
+        SelectedPets
+    ) do
+
+        Total +=
+            #GetPets(PetName)
+
+    end
+
+
+    return Total
+
+end
+
+
+local function UpdateTargetCount()
+
+    local Count =
+        GetTargetCount()
+
+
+    TargetCountLabel.Text =
+        "TARGET: "
+        .. tostring(
+            Count
+        )
+
+end
+
+
+--==================================================
+-- ACTIVE PET UI
+--==================================================
+
+local function GetActivePetData()
+
+    local ActivePetUI =
+        PG:FindFirstChild(
+            "ActivePetUI"
+        )
+
+
+    if not ActivePetUI then
+        return {}
+    end
+
+
+    local Frame =
+        ActivePetUI:FindFirstChild(
+            "Frame"
+        )
+
+    local MainFrame =
+        Frame
+        and Frame:FindFirstChild(
+            "Main"
+        )
+
+    local PetDisplay =
+        MainFrame
+        and MainFrame:FindFirstChild(
+            "PetDisplay"
+        )
+
+    local ScrollingFrame =
+        PetDisplay
+        and PetDisplay:FindFirstChild(
+            "ScrollingFrame"
+        )
+
+
+    if not ScrollingFrame then
+        return {}
+    end
+
+
+    local Result = {}
+
+
+    for _, PetFrame in ipairs(
+        ScrollingFrame:GetChildren()
+    ) do
+
+        if PetFrame.Name ~=
+            "Pet Template" then
+
+            local PetMain =
+                PetFrame:FindFirstChild(
+                    "Main"
+                )
+
+            local PetType =
+                PetMain
+                and PetMain:FindFirstChild(
+                    "PET_TYPE"
+                )
+
+
+            if PetType then
+
+                table.insert(
+                    Result,
+                    {
+                        UUID =
+                            PetFrame.Name,
+
+                        Name =
+                            tostring(
+                                PetType.Text
+                            )
+                    }
+                )
+
+            end
+
+        end
+
+    end
+
+
+    return Result
+
+end
+
+
+--==================================================
+-- COUNT ACTIVE
+--==================================================
+
+local function CountActive(SearchName)
+
+    local Count =
+        0
+
+
+    local Active =
+        GetActivePetData()
+
+
+    for _, Pet in ipairs(
+        Active
+    ) do
+
+        if string.find(
+            string.lower(
+                tostring(
+                    Pet.Name
+                )
+            ),
+            string.lower(
+                SearchName
+            ),
+            1,
+            true
+        ) then
+
+            Count +=
+                1
+
+        end
+
+    end
+
+
+    return Count
+
+end
+
+
+--==================================================
+-- UNEQUIP PET
+--==================================================
+
+local function UnequipPet(UUID)
+
+    if not UUID then
+        return
+    end
+
+
+    local Args = {
+
+        [1] =
+            "UnequipPet",
+
+        [2] =
+            UUID
+
+    }
+
+
+    PetsService:FireServer(
+        unpack(Args)
+    )
+
+    task.wait(0)
+
+    PetsService:FireServer(
+        unpack(Args)
+    )
+
+    task.wait(
+        0.05
+    )
+
+end
+
+
+--==================================================
+-- UNEQUIP ALL PETS
+--==================================================
+
+local function UnequipAllPets()
+
+    local Active =
+        GetActivePetData()
+
+
+    for _, Pet in ipairs(
+        Active
+    ) do
+
+        UnequipPet(
+            Pet.UUID
+        )
+
+    end
+
+
+    task.wait(
+        0.5
+    )
+
+end
+
+
+--==================================================
+-- EQUIP PET
+--==================================================
+
+local function EquipPet(Pet)
+
+    if not Pet then
+        return
+    end
+
+
+    local Args = {
+
+        [1] =
+            "EquipPet",
+
+        [2] =
+            Pet.UUID
+
+    }
+
+
+    PetsService:FireServer(
+        unpack(Args)
+    )
+
+    task.wait(0)
+
+    PetsService:FireServer(
+        unpack(Args)
+    )
+
+    task.wait(
+        Config.EQUIP_DELAY
+    )
+
+end
+
+
+--==================================================
+-- BALD + MIMIC CHECK
+--==================================================
+
+local function CheckBaldMimic()
+
+    return
+
+        CountActive(
+            "Bald Eagle"
+        )
+        >= Config.BALD_TARGET
+
+        and
+
+        CountActive(
+            "Mimic Octopus"
+        )
+        >= Config.MIMIC_TARGET
+
+end
+
+
+--==================================================
+-- BUILD BALD + MIMIC
+--==================================================
+
+local function BuildBaldMimic()
+
+    local Result = {}
+
+
+    local Bald =
+        GetPets(
+            "Bald Eagle"
+        )
+
+    local Mimic =
+        GetPets(
+            "Mimic Octopus"
+        )
+
+
+    if #Bald <
+        Config.BALD_TARGET then
+
+        Log(
+            "BALD:",
+            #Bald,
+            "/",
+            Config.BALD_TARGET
+        )
+
+        return Result
+
+    end
+
+
+    if #Mimic <
+        Config.MIMIC_TARGET then
+
+        Log(
+            "MIMIC:",
+            #Mimic,
+            "/",
+            Config.MIMIC_TARGET
+        )
+
+        return Result
+
+    end
+
+
+    for i = 1,
+        Config.BALD_TARGET do
+
+        table.insert(
+            Result,
+            Bald[i]
+        )
+
+    end
+
+
+    for i = 1,
+        Config.MIMIC_TARGET do
+
+        table.insert(
+            Result,
+            Mimic[i]
+        )
+
+    end
+
+
+    return Result
+
+end
+
+
+--==================================================
+-- SET BALD MIMIC
+--==================================================
+
+local function SetBaldMimic()
+
+    SetState(
+        "BALD + MIMIC"
+    )
+
+
+    for Attempt = 1, 10 do
+
+        if not Running then
+            return false
+        end
+
+
+        if TradeRunning then
+            return false
+        end
+
+
+        if CheckBaldMimic() then
+            return true
+        end
+
+
+        local Desired =
+            BuildBaldMimic()
+
+
+        if #Desired ~=
+            Config.BALD_TARGET
+            + Config.MIMIC_TARGET then
+
+            return false
+
+        end
+
+
+        UnequipAllPets()
+
+
+        for _, Pet in ipairs(
+            Desired
+        ) do
+
+            if not Running
+                or TradeRunning then
+
+                return false
+
+            end
+
+
+            EquipPet(Pet)
+
+        end
+
+
+        task.wait(
+            Config.AFTER_EQUIP_WAIT
+        )
+
+
+        if CheckBaldMimic() then
+            return true
+        end
+
+    end
+
+
+    return false
+
+end
+
+
+--==================================================
+-- KOI + BRONTO
+--==================================================
+
+local function CheckKoiBronto()
+
+    return
+
+        CountActive("Koi")
+        >= Config.KOI_TARGET
+
+        and
+
+        CountActive(
+            "Brontosaurus"
+        )
+        >= Config.BRONTO_TARGET
+
+end
+
+
+local function BuildKoiBronto()
+
+    local Result = {}
+
+
+    local Koi =
+        GetPets(
+            "Koi"
+        )
+
+    local Bronto =
+        GetPets(
+            "Brontosaurus"
+        )
+
+
+    if #Koi <
+        Config.KOI_TARGET then
+
+        Log(
+            "KOI:",
+            #Koi,
+            "/",
+            Config.KOI_TARGET
+        )
+
+        return Result
+
+    end
+
+
+    if #Bronto <
+        Config.BRONTO_TARGET then
+
+        Log(
+            "BRONTO:",
+            #Bronto,
+            "/",
+            Config.BRONTO_TARGET
+        )
+
+        return Result
+
+    end
+
+
+    for i = 1,
+        Config.KOI_TARGET do
+
+        table.insert(
+            Result,
+            Koi[i]
+        )
+
+    end
+
+
+    for i = 1,
+        Config.BRONTO_TARGET do
+
+        table.insert(
+            Result,
+            Bronto[i]
+        )
+
+    end
+
+
+    return Result
+
+end
+
+
+local function SetKoiBronto()
+
+    SetState(
+        "KOI + BRONTO"
+    )
+
+
+    for Attempt = 1, 10 do
+
+        if not Running
+            or TradeRunning then
+
+            return false
+
+        end
+
+
+        if CheckKoiBronto() then
+            return true
+        end
+
+
+        local Desired =
+            BuildKoiBronto()
+
+
+        if #Desired ~=
+            Config.KOI_TARGET
+            + Config.BRONTO_TARGET then
+
+            return false
+
+        end
+
+
+        UnequipAllPets()
+
+
+        for _, Pet in ipairs(
+            Desired
+        ) do
+
+            if not Running
+                or TradeRunning then
+
+                return false
+
+            end
+
+
+            EquipPet(Pet)
+
+        end
+
+
+        task.wait(
+            Config.AFTER_EQUIP_WAIT
+        )
+
+
+        if CheckKoiBronto() then
+            return true
+        end
+
+    end
+
+
+    return false
+
+end
+
+
+--==================================================
+-- SEAL
+--==================================================
+
+local function CheckSeals()
+
+    return
+
+        CountActive("Seal")
+        >= Config.SEAL_TARGET
+
+end
+
+
+local function BuildSeals()
+
+    local Result = {}
+
+
+    local Seals =
+        GetPets(
+            "Seal"
+        )
+
+
+    if #Seals <
+        Config.SEAL_TARGET then
+
+        Log(
+            "SEAL:",
+            #Seals,
+            "/",
+            Config.SEAL_TARGET
+        )
+
+        return Result
+
+    end
+
+
+    for i = 1,
+        Config.SEAL_TARGET do
+
+        table.insert(
+            Result,
+            Seals[i]
+        )
+
+    end
+
+
+    return Result
+
+end
+
+
+local function SetSeals()
+
+    SetState(
+        "EQUIP SEAL"
+    )
+
+
+    for Attempt = 1, 10 do
+
+        if not Running
+            or TradeRunning then
+
+            return false
+
+        end
+
+
+        if CheckSeals() then
+            return true
+        end
+
+
+        local Desired =
+            BuildSeals()
+
+
+        if #Desired <
+            Config.SEAL_TARGET then
+
+            return false
+
+        end
+
+
+        UnequipAllPets()
+
+
+        for _, Pet in ipairs(
+            Desired
+        ) do
+
+            if not Running
+                or TradeRunning then
+
+                return false
+
+            end
+
+
+            EquipPet(Pet)
+
+        end
+
+
+        task.wait(
+            Config.AFTER_EQUIP_WAIT
+        )
+
+
+        if CheckSeals() then
+            return true
+        end
+
+    end
+
+
+    return false
+
+end
+
+
+--==================================================
+-- ALL EGGS READY
+--==================================================
+
+local function AllEggsReady()
+
+    local Eggs =
+        GetEggs()
+
+
+    if #Eggs == 0 then
+        return false
+    end
+
+
+    for _, Egg in ipairs(
+        Eggs
+    ) do
+
+        local Time =
+            Egg:GetAttribute(
+                "TimeToHatch"
+            )
+
+
+        if Time ~= 0 then
+            return false
+        end
+
+    end
+
+
+    return true
+
+end
+
+
+--==================================================
+-- WAIT EGGS
+--==================================================
+
+local function WaitAllEggReady()
+
+    SetState(
+        "WAIT EGG"
+    )
+
+
+    while Running
+        and not TradeRunning do
+
+        local Target =
+            GetTargetCount()
+
+
+        if Target >=
+            Config.TARGET_LIMIT then
+
+            return false
+
+        end
+
+
+        local EggCount =
+            GetEggCount()
+
+
+        if EggCount == 0 then
+            return false
+        end
+
+
+        if AllEggsReady() then
+            return true
+        end
+
+
+        task.wait(
+            math.max(
+                0.5,
+                Config.LOOP_DELAY
+            )
+        )
+
+    end
+
+
+    return false
+
+end
+
+
+--==================================================
+-- HATCH
+--==================================================
+
+local function HatchAll()
+
+    if not Running
+        or TradeRunning then
+
+        return false
+
+    end
+
+
+    local Eggs =
+        GetEggs()
+
+
+    if #Eggs == 0 then
+        return false
+    end
+
+
+    if not AllEggsReady() then
+        return false
+    end
+
+
+    SetState(
+        "HATCH"
+    )
+
+
+    for _, Egg in ipairs(
+        Eggs
+    ) do
+
+        if not Running
+            or TradeRunning then
+
+            return false
+
+        end
+
+
+        if Egg
+            and Egg.Parent then
+
+            PetEggService:FireServer(
+                "HatchPet",
+                Egg
+            )
+
+
+            task.wait(
+                Config.HATCH_DELAY
+            )
+
+        end
+
+    end
+
+
+    task.wait(1)
+
+
+    return true
+
+end
+
+
+--==================================================
+-- SELL
+--==================================================
+
+local function SellTargetPets()
+
+    SetState(
+        "SELL"
+    )
+
+
+    if #SelectedPets == 0 then
+
+        Log(
+            "NO SELECTED SELL PET"
+        )
+
+        return
+
+    end
+
+
+    local SellNames = {}
+
+
+    for _, PetName in ipairs(
+        SelectedPets
+    ) do
+
+        SellNames[PetName] =
+            true
+
+    end
+
+
+    local Count =
+        0
+
+
+    for _, Tool in ipairs(
+        Backpack:GetChildren()
+    ) do
+
+        if not Running
+            or TradeRunning then
+
+            return
+
+        end
+
+
+        if Tool:IsA("Tool") then
+
+            local PetName =
+                nil
+
+
+            for Name in pairs(
+                SellNames
+            ) do
+
+                if Tool.Name:match(
+                    "^"
+                    .. Name
+                ) then
+
+                    PetName =
+                        Name
+
+                    break
+
+                end
+
+            end
+
+
+            if PetName then
+
+                local KG =
+                    tonumber(
+                        Tool.Name:match(
+                            "%[([%d%.]+)%s*[Kk][Gg]%]"
+                        )
+                    )
+
+
+                if KG
+                    and KG <
+                    Config.SELL_KG_LIMIT then
+
+                    SellRemote:FireServer(
+                        Tool,
+                        true
+                    )
+
+
+                    Count +=
+                        1
+
+
+                    task.wait(
+                        Config.SELL_DELAY
+                    )
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    Log(
+        "SOLD:",
+        Count
+    )
+
+
+    task.wait(
+        0.5
+    )
+
+end
+
+
+--==================================================
+-- PLACE EGGS
+--==================================================
+
+local function PlaceEggsUntilTarget()
+
+    local Current =
+        GetEggCount()
+
+
+    if Current >=
+        Config.MAX_EGG then
+
+        return true
+
+    end
+
+
+    SetState(
+        "PLACE EGG"
+    )
+
+
+    while Running
+        and not TradeRunning
+        and Current < Config.MAX_EGG do
+
+
+        local EggTool =
+            EquipEgg()
+
+
+        if not EggTool then
+            return false
+        end
+
+
+        local Batch =
+            math.max(
+                1,
+                math.floor(
+                    Config.PLACE_BATCH
+                )
+            )
+
+
+        for i = 1, Batch do
+
+            if not Running
+                or TradeRunning then
+
+                return false
+
+            end
+
+
+            local Before =
+                GetEggCount()
+
+
+            if Before >=
+                Config.MAX_EGG then
+
+                break
+
+            end
+
+
+            CreateEgg(
+                GetRandomPlantPosition()
+            )
+
+
+            task.wait(
+                Config.PLACE_DELAY
+            )
+
+        end
+
+
+        UnequipAllTools()
+
+
+        task.wait(
+            Config.AFTER_PLACE_WAIT
+        )
+
+
+        Current =
+            GetEggCount()
+
+    end
+
+
+    return
+        Current >=
+        Config.MAX_EGG
+
+end
+
+
+--==================================================
+-- LOW STATE
+--==================================================
+
+local function StateLowTarget()
+
+    if TradeRunning then
+        return
+    end
+
+
+    SetState(
+        "LOW TARGET"
+    )
+
+
+    UnequipAllPets()
+
+
+    if not Running
+        or TradeRunning then
+
+        return
+
+    end
+
+
+    if GetEggCount() <
+        Config.MAX_EGG then
+
+        if not PlaceEggsUntilTarget() then
+            return
+        end
+
+    end
+
+
+    if not Running
+        or TradeRunning then
+
+        return
+
+    end
+
+
+    if GetEggCount() <
+        Config.MAX_EGG then
+
+        return
+
+    end
+
+
+    if not SetBaldMimic() then
+        return
+    end
+
+
+    if not Running
+        or TradeRunning then
+
+        return
+
+    end
+
+
+    if not WaitAllEggReady() then
+        return
+
+    end
+
+
+    if not Running
+        or TradeRunning then
+
+        return
+
+    end
+
+
+    if not SetKoiBronto() then
+        return
+    end
+
+
+    if not Running
+        or TradeRunning then
+
+        return
+
+    end
+
+
+    HatchAll()
+
+end
+
+
+--==================================================
+-- HIGH STATE
+--==================================================
+
+local function StateHighTarget()
+
+    if TradeRunning then
+        return
+    end
+
+
+    SetState(
+        "HIGH TARGET"
+    )
+
+
+    UnequipAllPets()
+
+
+    if not Running
+        or TradeRunning then
+
+        return
+
+    end
+
+
+    if not SetSeals() then
+        return
+    end
+
+
+    if not Running
+        or TradeRunning then
+
+        return
+
+    end
+
+
+    SellTargetPets()
+
+
+    while Running
+        and not TradeRunning do
+
+        local Count =
+            GetTargetCount()
+
+
+        if Count <
+            Config.TARGET_LIMIT then
+
+            return
+
+        end
+
+
+        if not CheckSeals() then
+
+            if not SetSeals() then
+                return
+            end
+
+        end
+
+
+        task.wait(
+            math.max(
+                1,
+                Config.LOOP_DELAY
+            )
+        )
+
+    end
+
+end
+
+
+--==================================================
+-- TRADE UTIL
+--==================================================
+
+local function GetPerytonFromContainer(
+    Container,
+    MaxCount
+)
+
+    local Result = {}
+
+
+    if not Container then
+        return Result
+    end
+
+
+    for _, Tool in ipairs(
+        Container:GetChildren()
+    ) do
+
+        if Tool:IsA("Tool") then
+
+            local PetName =
+                Tool:GetAttribute(
+                    "f"
+                )
+
+            local UUID =
+                Tool:GetAttribute(
+                    "PET_UUID"
+                )
+
+
+            if PetName ==
+                "Peryton"
+                and UUID then
+
+                table.insert(
+                    Result,
+                    {
+                        Tool = Tool,
+                        UUID = UUID
+                    }
+                )
+
+
+                if MaxCount
+                    and #Result >= MaxCount then
+
+                    break
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    return Result
+
+end
+
+
+--==================================================
+-- LOCAL PERYTON COUNT
+--==================================================
+
+local function GetLocalPerytonCount()
+
+    local Count =
+        #GetPerytonFromContainer(
+            Backpack
+        )
+
+
+    local Character =
+        LP.Character
+
+
+    if Character then
+
+        Count += #GetPerytonFromContainer(
+            Character
+        )
+
+    end
+
+
+    return Count
+
+end
+
+
+--==================================================
+-- GITHUB HTTP
+--==================================================
+
+local function GetHttpGet()
+
+    if game.HttpGet then
+
+        return function(URL)
+
+            return game:HttpGet(
+                URL
+            )
+
+        end
+
+    end
+
+
+    if request then
+
+        return function(URL)
+
+            local Response =
+                request({
+                    Url = URL,
+                    Method = "GET"
+                })
+
+
+            if Response
+                and Response.Body then
+
+                return Response.Body
+
+            end
+
+
+            return nil
+
+        end
+
+    end
+
+
+    return nil
+
+end
+
+
+--==================================================
+-- SAVE TRADE TARGET CACHE
+--==================================================
+
+local function SaveTradeTargetCache()
+
+    if not writefile then
+        return
+    end
+
+
+    pcall(function()
+
+        writefile(
+            TRADE_TARGET_CACHE,
+            HttpService:JSONEncode(
+                TradeTargets
+            )
+        )
+
+    end)
+
+end
+
+
+--==================================================
+-- LOAD LOCAL TRADE TARGET CACHE
+--==================================================
+
+local function LoadTradeTargetsFromLocal()
+
+    if not isfile
+        or not isfile(
+            TRADE_TARGET_CACHE
+        ) then
+
+        return false
+
+    end
+
+
+    local Success, Data =
+        pcall(function()
+
+            return HttpService:JSONDecode(
+                readfile(
+                    TRADE_TARGET_CACHE
+                )
+            )
+
+        end)
+
+
+    if not Success
+        or type(Data) ~= "table" then
+
+        return false
+
+    end
+
+
+    TradeTargets = {}
+
+    TradeTargetMap = {}
+
+
+    for _, Entry in ipairs(Data) do
+
+        local Username
+
+
+        if type(Entry) == "string" then
+
+            Username =
+                Entry
+
+        elseif type(Entry) == "table" then
+
+            Username =
+                Entry.username
+
+        end
+
+
+        if type(Username) == "string"
+            and Username ~= "" then
+
+            local Lower =
+                string.lower(
+                    Username
+                )
+
+
+            if not TradeTargetMap[Lower] then
+
+                TradeTargetMap[Lower] =
+                    true
+
+                table.insert(
+                    TradeTargets,
+                    Username
+                )
+
+            end
+
+        end
+
+    end
+
+
+    return #TradeTargets > 0
+
+end
+
+
+--==================================================
+-- LOAD GITHUB TARGETS
+--==================================================
+
+local function LoadTradeTargetsFromGitHub()
+
+    local HttpGet =
+        GetHttpGet()
+
+
+    if not HttpGet then
+
+        Log(
+            "HTTP GET NOT AVAILABLE"
+        )
+
+        return false
+
+    end
+
+
+    local Success, Raw =
+        pcall(function()
+
+            return HttpGet(
+                TRADE_TARGET_URL
+            )
+
+        end)
+
+
+    if not Success
+        or type(Raw) ~= "string"
+        or Raw == "" then
+
+        Log(
+            "GITHUB READ FAILED"
+        )
+
+        return false
+
+    end
+
+
+    local DecodeSuccess, Data =
+        pcall(function()
+
+            return HttpService:JSONDecode(
+                Raw
+            )
+
+        end)
+
+
+    if not DecodeSuccess
+        or type(Data) ~= "table" then
+
+        Log(
+            "GITHUB JSON INVALID"
+        )
+
+        return false
+
+    end
+
+
+    TradeTargets = {}
+
+    TradeTargetMap = {}
+
+
+    for _, Entry in ipairs(Data) do
+
+        if type(Entry) == "table" then
+
+            local Username =
+                Entry.username
+
+
+            if type(Username) == "string"
+                and Username ~= "" then
+
+                local Lower =
+                    string.lower(
+                        Username
+                    )
+
+
+                if not TradeTargetMap[Lower] then
+
+                    TradeTargetMap[Lower] =
+                        true
+
+                    table.insert(
+                        TradeTargets,
+                        Username
+                    )
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    SaveTradeTargetCache()
+
+
+    return #TradeTargets > 0
+
+end
+
+
+--==================================================
+-- REMOVE SELF FROM TARGETS
+--==================================================
+
+local function RemoveSelfFromTradeTargets()
+
+    local MyName =
+        string.lower(
+            LP.Name
+        )
+
+
+    local NewTargets = {}
+
+    local NewMap = {}
+
+
+    for _, Username in ipairs(
+        TradeTargets
+    ) do
+
+        if string.lower(
+            Username
+        ) ~= MyName then
+
+            table.insert(
+                NewTargets,
+                Username
+            )
+
+            NewMap[
+                string.lower(
+                    Username
+                )
+            ] = true
+
+        end
+
+    end
+
+
+    TradeTargets =
+        NewTargets
+
+    TradeTargetMap =
+        NewMap
+
+
+    SaveTradeTargetCache()
+
+end
+
+
+--==================================================
+-- LOAD TARGETS ONCE
+--==================================================
+
+local function LoadTradeTargets()
+
+    if TradeTargetLoaded then
+        return
+    end
+
+
+    TradeTargetLoaded =
+        true
+
+
+    Log(
+        "READ GITHUB TARGETS..."
+    )
+
+
+    local Loaded =
+        LoadTradeTargetsFromGitHub()
+
+
+    if not Loaded then
+
+        Log(
+            "GITHUB FAILED → USE LOCAL CACHE"
+        )
+
+
+        Loaded =
+            LoadTradeTargetsFromLocal()
+
+    end
+
+
+    if not Loaded then
+
+        Log(
+            "NO TRADE TARGET CACHE"
+        )
+
+        return
+
+    end
+
+
+    -- IMPORTANT:
+    -- REMOVE OUR OWN USERNAME
+    RemoveSelfFromTradeTargets()
+
+
+    Log(
+        "TRADE TARGET COUNT:",
+        #TradeTargets
+    )
+
+
+    for Index, Username in ipairs(
+        TradeTargets
+    ) do
+
+        Log(
+            "TARGET",
+            Index,
+            "→",
+            Username
+        )
+
+    end
+
+end
+
+
+--==================================================
+-- GET TARGET PERYTON COUNT
+--==================================================
+
+local function GetTargetPerytonCount(
+    Target
+)
+
+    if not Target then
+        return 0
+    end
+
+
+    local Count =
+        0
+
+
+    local TargetBackpack =
+        Target:FindFirstChild(
+            "Backpack"
+        )
+
+
+    if TargetBackpack then
+
+        Count += #GetPerytonFromContainer(
+            TargetBackpack
+        )
+
+    end
+
+
+    local TargetCharacter =
+        Target.Character
+
+
+    if TargetCharacter then
+
+        Count += #GetPerytonFromContainer(
+            TargetCharacter
+        )
+
+    end
+
+
+    return Count
+
+end
+
+
+--==================================================
+-- FIND VALID TRADE TARGET
+--==================================================
+
+local function GetValidTradeTarget()
+
+    local LocalPeryton =
+        GetLocalPerytonCount()
+
+
+    if LocalPeryton <= 12 then
+
+        return nil
+
+    end
+
+
+    for _, Username in ipairs(
+        TradeTargets
+    ) do
+
+        local Target =
+            Players:FindFirstChild(
+                Username
+            )
+
+
+        if Target
+            and Target ~= LP then
+
+            local TargetPeryton =
+                GetTargetPerytonCount(
+                    Target
+                )
+
+
+            if TargetPeryton < 12 then
+
+                return Target
+
+            end
+
+        end
+
+    end
+
+
+    return nil
+
+end
+
+
+--==================================================
+-- FIND TRADING TICKET
+--==================================================
+
+local function FindTradingTicket()
+
+    for _, Tool in ipairs(
+        Backpack:GetChildren()
+    ) do
+
+        if Tool:IsA("Tool")
+            and string.match(
+                Tool.Name,
+                "^Trading Ticket"
+            ) then
+
+            return Tool
+
+        end
+
+    end
+
+
+    return nil
+
+end
+
+
+--==================================================
+-- EQUIP TRADING TICKET
+--==================================================
+
+local function EquipTradingTicket()
+
+    local Ticket =
+        FindTradingTicket()
+
+
+    if not Ticket then
+
+        Log(
+            "TRADING TICKET NOT FOUND"
+        )
+
+        return nil
+
+    end
+
+
+    local Character =
+        LP.Character
+        or LP.CharacterAdded:Wait()
+
+
+    Ticket.Parent =
+        Character
+
+
+    task.wait(
+        0.25
+    )
+
+
+    return Ticket
+
+end
+
+
+--==================================================
+-- TRADE CONDITION
+--==================================================
+
+local function ShouldTrade()
+
+    return
+        GetValidTradeTarget()
+        ~= nil
+
+end
+
+
+--==================================================
+-- TRADE REQUEST
+--==================================================
+
+local function StateTradeRequest()
+
+    if TradeRunning then
+        return
+    end
+
+
+    TradeRunning =
+        true
+
+
+    SetState(
+        "TRADE REQUEST"
+    )
+
+
+    -- STOP ALL STATE
+    UnequipAllPets()
+    UnequipAllTools()
+
+
+    task.wait(
+        0.25
+    )
+
+
+    if not Running then
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- FIND VALID TARGET
+    --==================================================
+
+    local Target =
+        GetValidTradeTarget()
+
+
+    if not Target then
+
+        Log(
+            "NO VALID TRADE TARGET"
+        )
+
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    local TargetPeryton =
+        GetTargetPerytonCount(
+            Target
+        )
+
+    local LocalPeryton =
+        GetLocalPerytonCount()
+
+
+    Log(
+        "TRADE TARGET:",
+        Target.Name
+    )
+
+    Log(
+        "TARGET PERYTON:",
+        TargetPeryton
+    )
+
+    Log(
+        "LOCAL PERYTON:",
+        LocalPeryton
+    )
+
+
+    --==================================================
+    -- FINAL CONDITION
+    --==================================================
+
+    if TargetPeryton >= 12
+        or LocalPeryton <= 12 then
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- EQUIP TRADING TICKET
+    --==================================================
+
+    SetState(
+        "EQUIP TICKET"
+    )
+
+
+    local Ticket =
+        EquipTradingTicket()
+
+
+    if not Ticket then
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    task.wait(
+        TRADE_REQUEST_DELAY
+    )
+
+
+    if not Running then
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- SEND REQUEST
+    --==================================================
+
+    SetState(
+        "SEND REQUEST"
+    )
+
+
+    SendRequestEvent:FireServer(
+        Target
+    )
+
+
+    task.wait(
+        1
+    )
+
+
+    if not Running then
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- GET PERYTON
+    --==================================================
+
+    local Perytons =
+        GetPerytonFromContainer(
+            Backpack,
+            TRADE_MAX_PERYTON
+        )
+
+
+    if #Perytons == 0 then
+
+        Log(
+            "NO PERYTON"
+        )
+
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    --==================================================
+    -- ADD PERYTON
+    --==================================================
+
+    SetState(
+        "ADD PERYTON"
+    )
+
+
+    local Added =
+        0
+
+
+    for _, Pet in ipairs(
+        Perytons
+    ) do
+
+        if not Running then
+            break
+        end
+
+
+        AddItemEvent:FireServer(
+            "Pet",
+            Pet.UUID
+        )
+
+
+        Added +=
+            1
+
+
+        task.wait(
+            TRADE_ADD_DELAY
+        )
+
+
+        if Added >=
+            TRADE_MAX_PERYTON then
+
+            break
+
+        end
+
+    end
+
+
+    if Added == 0 then
+
+        UnequipAllTools()
+
+        TradeRunning =
+            false
+
+        return
+
+    end
+
+
+    Log(
+        "ADDED PERYTON:",
+        Added
+    )
+
+
+    --==================================================
+    -- ACCEPT
+    --==================================================
+
+    if Running then
+
+        SetState(
+            "TRADE ACCEPT"
+        )
+
+
+        AcceptEvent:FireServer()
+
+
+        task.wait(
+            TRADE_ACCEPT_DELAY
+        )
+
+    end
+
+
+    --==================================================
+    -- CONFIRM
+    --==================================================
+
+    if Running then
+
+        SetState(
+            "TRADE CONFIRM"
+        )
+
+
+        ConfirmEvent:FireServer()
+
+
+        task.wait(
+            TRADE_CONFIRM_DELAY
+        )
+
+    end
+
+
+    --==================================================
+    -- UNEQUIP ALL TOOLS
+    --==================================================
+
+    SetState(
+        "TRADE DONE"
+    )
+
+
+    UnequipAllTools()
+
+
+    task.wait(
+        0.5
+    )
+
+
+    TradeRunning =
+        false
+
+
+    SetState(
+        "RESUME"
+    )
+
+end
+
+
+--==================================================
+-- AUTO ACCEPT GIFT
+--==================================================
+
+local autoAcceptRunning =
+    true
+
 
 task.spawn(function()
 
-	local pendingListing =
-		getgenv().FindSellerListingId
+    local GiftNotification =
+        PG:WaitForChild(
+            "Gift_Notification"
+        )
 
-	if not pendingListing then
-		return
-	end
 
-	task.wait(5)
+    local function IsAcceptButton(Button)
 
-	local result =
-		readFindSellerListing()
+        if not (
+            Button:IsA("TextButton")
+            or Button:IsA("ImageButton")
+        ) then
 
-	if result then
+            return false
 
-		print("================================")
-		print("FIND SELLER COMPLETE")
-		print("================================")
-		print("PRICE:", result.price)
+        end
 
-	end
+
+        if not Button.Visible then
+            return false
+        end
+
+
+        local Text =
+            ""
+
+
+        if Button:IsA("TextButton") then
+
+            Text =
+                string.lower(
+                    Button.Text
+                )
+
+        end
+
+
+        local Name =
+            string.lower(
+                Button.Name
+            )
+
+
+        return
+
+            string.find(
+                Text,
+                "accept"
+            )
+
+            or
+
+            string.find(
+                Name,
+                "accept"
+            )
+
+    end
+
+
+    local function ClickAccept(Button)
+
+        task.spawn(function()
+
+            if not autoAcceptRunning then
+                return
+            end
+
+
+            task.wait(
+                0.1
+            )
+
+
+            GuiService.SelectedObject =
+                Button
+
+
+            task.wait(
+                0.05
+            )
+
+
+            VirtualInputManager:SendKeyEvent(
+                true,
+                Enum.KeyCode.Return,
+                false,
+                game
+            )
+
+
+            VirtualInputManager:SendKeyEvent(
+                false,
+                Enum.KeyCode.Return,
+                false,
+                game
+            )
+
+
+            task.wait(
+                0.05
+            )
+
+
+            GuiService.SelectedObject =
+                nil
+
+        end)
+
+    end
+
+
+    local function Check(Object)
+
+        if not autoAcceptRunning then
+            return
+        end
+
+
+        if IsAcceptButton(Object) then
+            ClickAccept(Object)
+        end
+
+    end
+
+
+    for _, Object in ipairs(
+        GiftNotification:GetDescendants()
+    ) do
+
+        Check(Object)
+
+    end
+
+
+    GiftNotification.DescendantAdded:Connect(
+        Check
+    )
 
 end)
 
-----------------------------------------------------------------
--- BUY LOGIC
-----------------------------------------------------------------
-local buying = false
-local matchedListings = {}
 
-local function scanListings()
+--==================================================
+-- TRADE MONITOR
+--==================================================
 
-	table.clear(matchedListings)
+task.spawn(function()
 
-	local data = BoothsReplication:GetDataAsync()
+    while true do
 
-	if not data then
-		return
-	end
+        task.wait(
+            TRADE_CHECK_DELAY
+        )
 
-	for _,booth in pairs(data.Booths or {}) do
 
-		local ownerId = booth.Owner
-		local pData = ownerId and data.Players[ownerId]
+        if Running
+            and not TradeRunning then
 
-		if pData then
+            if ShouldTrade() then
 
-			for uuid,listing in pairs(pData.Listings or {}) do
+                task.spawn(
+                    StateTradeRequest
+                )
 
-				local item = pData.Items[listing.ItemId]
+            end
 
-				if item then
+        end
 
-					local name = ItemNameFinder(
-						item.Name or item.PetType or "",
-						listing.ItemType
-					):lower()
-
-					for _,wanted in ipairs(petDataList) do
-
-						local matched = false
-
-						------------------------------------------------
-						-- NORMAL PET
-						------------------------------------------------
-						if name == wanted.pet:lower() then
-							matched = true
-						end
-
-						------------------------------------------------
-						-- EGG GROUP
-						------------------------------------------------
-						if EggGroups[wanted.pet] then
-
-							for _,eggPet in ipairs(EggGroups[wanted.pet]) do
-
-								if name == eggPet:lower() then
-									matched = true
-									break
-								end
-
-							end
-
-						end
-
-						------------------------------------------------
-						-- BUY
-						------------------------------------------------
-						local itemWeight = getBaseWeight(item)
-						local itemLevel = getLevel(item)
-						local itemMutation = getMutationType(item)
-
-						local inputWeight = tonumber(minWeightBox.Text) or 6.17
-						local minWeight = inputWeight > 0 and (inputWeight / 1.1) or 6.17
-						local minLevel = tonumber(minLevelBox.Text) or 100
-
-						local wantedMutation =
-							tostring(wanted.mutation or ""):lower()
-
-						local mutationMatched = true
-
-						if wantedMutation ~= ""
-						and wantedMutation ~= "any" then
-
-							mutationMatched =
-								itemMutation:lower() == wantedMutation
-
-						end
-
-						if matched
-						and listing.Price <= wanted.price
-						and itemWeight >= minWeight
-						and itemLevel >= minLevel
-						and mutationMatched then
-
-							info.Text =
-							("FOUND %s | L:%s | KG:%s | M:%s")
-							:format(
-								name,
-								tostring(itemLevel),
-								tostring(itemWeight),
-								tostring(itemMutation)
-							)
-
-							table.insert(matchedListings,{
-								owner = TradeBoothsData.getPlayerById(ownerId),
-								uuid = uuid
-							})
-
-							break
-
-						end
-
-					end
-
-				end
-
-			end
-
-		end
-
-	end
-
-	info.Text = "Found "..#matchedListings
-
-end
-
-local function buyAllMatch()
-
-	if buying then
-		return
-	end
-
-	scanListings()
-
-	if #matchedListings <= 0 then
-
-		info.Text = "No Listing"
-
-		if selectedFindSellerPet then
-			teleportToSeller(selectedFindSellerPet)
-		end
-
-		return
-	end
-
-	buying = true
-
-	for i,v in ipairs(matchedListings) do
-
-		info.Text =
-			("Buying %d/%d")
-			:format(i,#matchedListings)
-
-		pcall(function()
-
-			TradeEvents.Booths.BuyListing:InvokeServer(
-				v.owner,
-				v.uuid
-			)
-
-		end)
-
-		task.wait(2)
-
-	end
-
-	buying = false
-
-	info.Text = "Finished Buying"
-
-	task.wait(1)
-
-	if selectedFindSellerPet then
-		teleportToSeller(selectedFindSellerPet)
-	end
-
-end
-
-----------------------------------------------------------------
--- BUTTONS
-----------------------------------------------------------------
-local buyBtn = Instance.new("TextButton")
-buyBtn.Parent = main
-buyBtn.Size = UDim2.new(0.42,0,0,45)
-buyBtn.Position = UDim2.new(0.05,0,1,-55)
-buyBtn.Text = "BUY ALL"
-buyBtn.Font = Enum.Font.GothamBold
-buyBtn.TextSize = 18
-buyBtn.BackgroundColor3 = Color3.fromRGB(0,170,90)
-buyBtn.TextColor3 = Color3.new(1,1,1)
-buyBtn.BorderSizePixel = 0
-Instance.new("UICorner",buyBtn)
-
-local autoBtn = Instance.new("TextButton")
-autoBtn.Parent = main
-autoBtn.Size = UDim2.new(0.42,0,0,45)
-autoBtn.Position = UDim2.new(0.53,0,1,-55)
-autoBtn.Font = Enum.Font.GothamBold
-autoBtn.TextSize = 18
-autoBtn.TextColor3 = Color3.new(1,1,1)
-autoBtn.BorderSizePixel = 0
-Instance.new("UICorner",autoBtn)
-
-local autoBuying = loadAutoBuyStatus()
-
-local function refreshAutoButton()
-
-	autoBtn.Text =
-		autoBuying and "AUTO ON" or "AUTO OFF"
-
-	autoBtn.BackgroundColor3 =
-		autoBuying
-		and Color3.fromRGB(0,170,90)
-		or Color3.fromRGB(170,0,0)
-
-end
-
-refreshAutoButton()
-
-autoBtn.Activated:Connect(function()
-
-	autoBuying = not autoBuying
-
-	saveAutoBuyStatus(autoBuying)
-
-	refreshAutoButton()
-
-	if autoBuying then
-
-		task.spawn(function()
-
-			while autoBuying do
-
-				pcall(buyAllMatch)
-
-				task.wait(3)
-
-			end
-
-		end)
-
-	end
+    end
 
 end)
 
-buyBtn.Activated:Connect(function()
-	pcall(buyAllMatch)
-end)
 
-if autoBuying then
+--==================================================
+-- MAIN LOOP
+--==================================================
 
-	task.spawn(function()
+local function StartMainLoop()
 
-		while autoBuying do
+    if MainLoopStarted then
+        return
+    end
 
-			pcall(buyAllMatch)
 
-			task.wait(10)
+    MainLoopStarted =
+        true
 
-		end
 
-	end)
+    task.spawn(function()
+
+        while true do
+
+            if Running
+                and not TradeRunning then
+
+                UpdateTargetCount()
+
+
+                local TargetCount =
+                    GetTargetCount()
+
+
+                if TargetCount >=
+                    Config.TARGET_LIMIT then
+
+                    StateHighTarget()
+
+                else
+
+                    StateLowTarget()
+
+                end
+
+
+                task.wait(
+                    math.max(
+                        0.1,
+                        Config.LOOP_DELAY
+                    )
+                )
+
+            else
+
+                if TradeRunning then
+
+                    task.wait(
+                        0.2
+                    )
+
+                else
+
+                    SetState(
+                        "OFF"
+                    )
+
+                    task.wait(
+                        1
+                    )
+
+                end
+
+            end
+
+        end
+
+    end)
 
 end
+
+
+--==================================================
+-- TOGGLE
+--==================================================
+
+Toggle.MouseButton1Click:Connect(function()
+
+    Running =
+        not Running
+
+
+    if not Running then
+
+        TradeRunning =
+            false
+
+        UnequipAllPets()
+        UnequipAllTools()
+
+    end
+
+
+    UpdateToggle()
+
+
+    if Running then
+
+        Log(
+            "AUTO HATCH ON"
+        )
+
+    else
+
+        Log(
+            "AUTO HATCH OFF"
+        )
+
+    end
+
+end)
+
+
+--==================================================
+-- LOAD TRADE TARGETS
+-- IMPORTANT:
+-- DILAKUKAN 1x SAAT EXECUTE
+--==================================================
+
+LoadTradeTargets()
+
+
+--==================================================
+-- INITIAL GUI
+--==================================================
+
+UpdateSelectedPets()
+
+UpdateTargetCount()
+
+UpdateToggle()
+
+
+Log(
+    "=============================="
+)
+
+Log(
+    "AUTO HATCH READY"
+)
+
+Log(
+    "PETLIST:",
+    #PetList
+)
+
+Log(
+    "SELECTED:",
+    #SelectedPets
+)
+
+Log(
+    "TRADE TARGETS:",
+    #TradeTargets
+)
+
+Log(
+    "TRADE MAX:",
+    TRADE_MAX_PERYTON
+)
+
+Log(
+    "GITHUB READ:",
+    "ONCE / EXECUTE"
+)
+
+Log(
+    "SELF EXCLUDED:",
+    LP.Name
+)
+
+Log(
+    "STATUS:",
+    Running
+        and "ON"
+        or "OFF"
+)
+
+Log(
+    "=============================="
+)
+
+
+StartMainLoop()
