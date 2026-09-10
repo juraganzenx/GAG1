@@ -1,17 +1,17 @@
---//==================================================
+--//============================================a======
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
 --// AUTO TRADE:
 --// TARGET PLAYER = FROM GITHUB addusername.json
---// TARGET Dragonfly < 12
---// LOCAL Dragonfly > 12
+--// TARGET PERYTON < 12
+--// LOCAL PERYTON > 12
 --//
 --// TRADE FLOW:
 --// STOP ALL STATE
 --// -> EQUIP TRADING TICKET xN
 --// -> SEND REQUEST
---// -> ADD MAX 20 Dragonfly
+--// -> ADD MAX 20 PERYTON
 --// -> ACCEPT
 --// -> CONFIRM
 --// -> UNEQUIP ALL TOOLS
@@ -60,6 +60,21 @@ local UIS =
 
 local HttpService =
     game:GetService("HttpService")
+
+local TeleportService =
+    game:GetService("TeleportService")
+
+local TRADE_WORLD_PLACE_ID =
+    129954712878723
+
+local SPRINGTIDE_BACKPACK_LIMIT =
+    300
+
+local BUYTRASH_URL =
+    "https://raw.githubusercontent.com/juraganzenx/GAG1/refs/heads/main/BUYTRASH"
+
+local SpringtideExhaustionHandled =
+    false
 
 local GuiService =
     game:GetService("GuiService")
@@ -131,7 +146,7 @@ local TRADE_TARGET_URL =
 local TRADE_TARGET_CACHE =
     "AutoHatch_TradeTargets.json"
 
-local TRADE_MAX_Dragonfly =
+local TRADE_MAX_PERYTON =
     20
 
 local TRADE_ADD_DELAY =
@@ -2867,7 +2882,7 @@ end
 
 
 --==================================================
--- Bug Egg
+-- SPRINGTIDE EGG
 --==================================================
 
 local function FindSpringtideEgg()
@@ -2892,7 +2907,7 @@ local function FindSpringtideEgg()
 
                 if Tool:IsA("Tool")
                     and Tool:GetAttribute("h")
-                    == "Bug Egg" then
+                    == "Springtide Egg" then
 
                     return Tool
 
@@ -2923,7 +2938,7 @@ local function EquipEgg()
     if not Egg then
 
         Log(
-            "Bug Egg NOT FOUND"
+            "SPRINGTIDE EGG NOT FOUND"
         )
 
         return nil
@@ -4421,7 +4436,7 @@ end
 -- TRADE UTIL
 --==================================================
 
-local function GetDragonflyFromContainer(
+local function GetPerytonFromContainer(
     Container,
     MaxCount
 )
@@ -4452,7 +4467,7 @@ local function GetDragonflyFromContainer(
 
 
             if PetName ==
-                "Dragonfly"
+                "Peryton"
                 and UUID then
 
                 table.insert(
@@ -4484,13 +4499,13 @@ end
 
 
 --==================================================
--- LOCAL Dragonfly COUNT
+-- LOCAL PERYTON COUNT
 --==================================================
 
-local function GetLocalDragonflyCount()
+local function GetLocalPerytonCount()
 
     local Count =
-        #GetDragonflyFromContainer(
+        #GetPerytonFromContainer(
             Backpack
         )
 
@@ -4501,7 +4516,7 @@ local function GetLocalDragonflyCount()
 
     if Character then
 
-        Count += #GetDragonflyFromContainer(
+        Count += #GetPerytonFromContainer(
             Character
         )
 
@@ -4560,6 +4575,131 @@ local function GetHttpGet()
 
     return nil
 
+end
+
+
+--==================================================
+-- SPRINGTIDE EXHAUSTED -> TRADE WORLD
+--==================================================
+
+local function IsTradeWorld()
+    return game.PlaceId == TRADE_WORLD_PLACE_ID
+end
+
+local function GetSellPetBackpackCount()
+    -- Same SelectedPets list and GetPets() logic used by Auto Hatch.
+    local Count = 0
+
+    for _, PetName in ipairs(SelectedPets) do
+        Count += #GetPets(PetName)
+    end
+
+    return Count
+end
+
+local function ExecuteBuyTrash()
+    if SpringtideExhaustionHandled then
+        return false
+    end
+
+    SpringtideExhaustionHandled = true
+
+    SetState("BUYTRASH")
+    Log("SPRINGTIDE EGG EXHAUSTED")
+    Log("EXECUTING BUYTRASH RAW")
+
+    local HttpGet = GetHttpGet()
+
+    if not HttpGet then
+        Log("HTTP GET NOT AVAILABLE")
+        SpringtideExhaustionHandled = false
+        return false
+    end
+
+    local Success, Source = pcall(HttpGet, BUYTRASH_URL)
+
+    if not Success or type(Source) ~= "string" or Source == "" then
+        Log("BUYTRASH DOWNLOAD FAILED")
+        SpringtideExhaustionHandled = false
+        return false
+    end
+
+    if type(loadstring) ~= "function" then
+        Log("LOADSTRING NOT AVAILABLE")
+        SpringtideExhaustionHandled = false
+        return false
+    end
+
+    local CompileSuccess, Script = pcall(loadstring, Source)
+
+    if not CompileSuccess or type(Script) ~= "function" then
+        Log("BUYTRASH COMPILE FAILED")
+        SpringtideExhaustionHandled = false
+        return false
+    end
+
+    local ExecuteSuccess, ExecuteError = pcall(Script)
+
+    if not ExecuteSuccess then
+        Log("BUYTRASH EXECUTE FAILED", tostring(ExecuteError))
+        SpringtideExhaustionHandled = false
+        return false
+    end
+
+    Log("BUYTRASH EXECUTED")
+
+    -- BUYTRASH takes over from here.
+    Running = false
+    UpdateToggle()
+
+    return true
+end
+
+local function HandleSpringtideExhausted()
+    if SpringtideExhaustionHandled then
+        return true
+    end
+
+    -- Still have a Springtide Egg: normal Auto Hatch continues.
+    if FindSpringtideEgg() then
+        return false
+    end
+
+    -- Egg exhausted outside Trade World: teleport there.
+    if not IsTradeWorld() then
+        SetState("TRADE WORLD")
+        Log("SPRINGTIDE EGG EMPTY - TELEPORT TO TRADE WORLD")
+
+        SpringtideExhaustionHandled = true
+
+        local Success, Error = pcall(function()
+            TeleportService:Teleport(TRADE_WORLD_PLACE_ID, LP)
+        end)
+
+        if not Success then
+            Log("TRADE WORLD TELEPORT FAILED", tostring(Error))
+            SpringtideExhaustionHandled = false
+        end
+
+        return true
+    end
+
+    -- Already in Trade World: count target sell pets in Backpack.
+    local Count = GetSellPetBackpackCount()
+
+    Log("SELL PET BACKPACK COUNT:", Count)
+
+    -- < 300 -> execute raw BUYTRASH.
+    if Count < SPRINGTIDE_BACKPACK_LIMIT then
+        return ExecuteBuyTrash()
+    end
+
+    -- >= 300 -> kick.
+    Log("SELL PET COUNT >= 300 - KICK")
+
+    LP:Kick("Sell Pet Backpack sudah 300 atau lebih.")
+
+    return true
 end
 
 
@@ -4922,10 +5062,10 @@ end
 
 
 --==================================================
--- GET TARGET Dragonfly COUNT
+-- GET TARGET PERYTON COUNT
 --==================================================
 
-local function GetTargetDragonflyCount(
+local function GetTargetPerytonCount(
     Target
 )
 
@@ -4946,7 +5086,7 @@ local function GetTargetDragonflyCount(
 
     if TargetBackpack then
 
-        Count += #GetDragonflyFromContainer(
+        Count += #GetPerytonFromContainer(
             TargetBackpack
         )
 
@@ -4959,7 +5099,7 @@ local function GetTargetDragonflyCount(
 
     if TargetCharacter then
 
-        Count += #GetDragonflyFromContainer(
+        Count += #GetPerytonFromContainer(
             TargetCharacter
         )
 
@@ -4977,11 +5117,11 @@ end
 
 local function GetValidTradeTarget()
 
-    local LocalDragonfly =
-        GetLocalDragonflyCount()
+    local LocalPeryton =
+        GetLocalPerytonCount()
 
 
-    if LocalDragonfly <= 12 then
+    if LocalPeryton <= 12 then
 
         return nil
 
@@ -5001,13 +5141,13 @@ local function GetValidTradeTarget()
         if Target
             and Target ~= LP then
 
-            local TargetDragonfly =
-                GetTargetDragonflyCount(
+            local TargetPeryton =
+                GetTargetPerytonCount(
                     Target
                 )
 
 
-            if TargetDragonfly < 12 then
+            if TargetPeryton < 12 then
 
                 return Target
 
@@ -5167,13 +5307,13 @@ local function StateTradeRequest()
     end
 
 
-    local TargetDragonfly =
-        GetTargetDragonflyCount(
+    local TargetPeryton =
+        GetTargetPerytonCount(
             Target
         )
 
-    local LocalDragonfly =
-        GetLocalDragonflyCount()
+    local LocalPeryton =
+        GetLocalPerytonCount()
 
 
     Log(
@@ -5182,13 +5322,13 @@ local function StateTradeRequest()
     )
 
     Log(
-        "TARGET Dragonfly:",
-        TargetDragonfly
+        "TARGET PERYTON:",
+        TargetPeryton
     )
 
     Log(
-        "LOCAL Dragonfly:",
-        LocalDragonfly
+        "LOCAL PERYTON:",
+        LocalPeryton
     )
 
 
@@ -5196,8 +5336,8 @@ local function StateTradeRequest()
     -- FINAL CONDITION
     --==================================================
 
-    if TargetDragonfly >= 12
-        or LocalDragonfly <= 12 then
+    if TargetPeryton >= 12
+        or LocalPeryton <= 12 then
 
         TradeRunning =
             false
@@ -5279,20 +5419,20 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- GET Dragonfly
+    -- GET PERYTON
     --==================================================
 
-    local Dragonflys =
-        GetDragonflyFromContainer(
+    local Perytons =
+        GetPerytonFromContainer(
             Backpack,
-            TRADE_MAX_Dragonfly
+            TRADE_MAX_PERYTON
         )
 
 
-    if #Dragonflys == 0 then
+    if #Perytons == 0 then
 
         Log(
-            "NO Dragonfly"
+            "NO PERYTON"
         )
 
 
@@ -5307,11 +5447,11 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- ADD Dragonfly
+    -- ADD PERYTON
     --==================================================
 
     SetState(
-        "ADD Dragonfly"
+        "ADD PERYTON"
     )
 
 
@@ -5320,7 +5460,7 @@ local function StateTradeRequest()
 
 
     for _, Pet in ipairs(
-        Dragonflys
+        Perytons
     ) do
 
         if not Running then
@@ -5344,7 +5484,7 @@ local function StateTradeRequest()
 
 
         if Added >=
-            TRADE_MAX_Dragonfly then
+            TRADE_MAX_PERYTON then
 
             break
 
@@ -5366,7 +5506,7 @@ local function StateTradeRequest()
 
 
     Log(
-        "ADDED Dragonfly:",
+        "ADDED PERYTON:",
         Added
     )
 
@@ -5646,21 +5786,25 @@ local function StartMainLoop()
             if Running
                 and not TradeRunning then
 
-                UpdateTargetCount()
+                if not HandleSpringtideExhausted() then
+
+                    UpdateTargetCount()
 
 
-                local TargetCount =
-                    GetTargetCount()
+                    local TargetCount =
+                        GetTargetCount()
 
 
-                if TargetCount >=
-                    Config.TARGET_LIMIT then
+                    if TargetCount >=
+                        Config.TARGET_LIMIT then
 
-                    StateHighTarget()
+                        StateHighTarget()
 
-                else
+                    else
 
-                    StateLowTarget()
+                        StateLowTarget()
+
+                    end
 
                 end
 
@@ -5787,7 +5931,7 @@ Log(
 
 Log(
     "TRADE MAX:",
-    TRADE_MAX_Dragonfly
+    TRADE_MAX_PERYTON
 )
 
 Log(
