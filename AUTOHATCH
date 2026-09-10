@@ -4,14 +4,14 @@
 --//
 --// AUTO TRADE:
 --// TARGET PLAYER = FROM GITHUB addusername.json
---// TARGET PERYTON < 12
---// LOCAL PERYTON > 12
+--// TARGET Dragonfly < 12
+--// LOCAL Dragonfly > 12
 --//
 --// TRADE FLOW:
 --// STOP ALL STATE
 --// -> EQUIP TRADING TICKET xN
 --// -> SEND REQUEST
---// -> ADD MAX 20 PERYTON
+--// -> ADD MAX 20 Dragonfly
 --// -> ACCEPT
 --// -> CONFIRM
 --// -> UNEQUIP ALL TOOLS
@@ -131,7 +131,7 @@ local TRADE_TARGET_URL =
 local TRADE_TARGET_CACHE =
     "AutoHatch_TradeTargets.json"
 
-local TRADE_MAX_PERYTON =
+local TRADE_MAX_Dragonfly =
     20
 
 local TRADE_ADD_DELAY =
@@ -2867,7 +2867,7 @@ end
 
 
 --==================================================
--- SPRINGTIDE EGG
+-- Bug Egg
 --==================================================
 
 local function FindSpringtideEgg()
@@ -2892,7 +2892,7 @@ local function FindSpringtideEgg()
 
                 if Tool:IsA("Tool")
                     and Tool:GetAttribute("h")
-                    == "Springtide Egg" then
+                    == "Bug Egg" then
 
                     return Tool
 
@@ -2923,7 +2923,7 @@ local function EquipEgg()
     if not Egg then
 
         Log(
-            "SPRINGTIDE EGG NOT FOUND"
+            "Bug Egg NOT FOUND"
         )
 
         return nil
@@ -4421,7 +4421,7 @@ end
 -- TRADE UTIL
 --==================================================
 
-local function GetPerytonFromContainer(
+local function GetDragonflyFromContainer(
     Container,
     MaxCount
 )
@@ -4452,7 +4452,7 @@ local function GetPerytonFromContainer(
 
 
             if PetName ==
-                "Peryton"
+                "Dragonfly"
                 and UUID then
 
                 table.insert(
@@ -4484,13 +4484,13 @@ end
 
 
 --==================================================
--- LOCAL PERYTON COUNT
+-- LOCAL Dragonfly COUNT
 --==================================================
 
-local function GetLocalPerytonCount()
+local function GetLocalDragonflyCount()
 
     local Count =
-        #GetPerytonFromContainer(
+        #GetDragonflyFromContainer(
             Backpack
         )
 
@@ -4501,7 +4501,7 @@ local function GetLocalPerytonCount()
 
     if Character then
 
-        Count += #GetPerytonFromContainer(
+        Count += #GetDragonflyFromContainer(
             Character
         )
 
@@ -4922,10 +4922,10 @@ end
 
 
 --==================================================
--- GET TARGET PERYTON COUNT
+-- GET TARGET Dragonfly COUNT
 --==================================================
 
-local function GetTargetPerytonCount(
+local function GetTargetDragonflyCount(
     Target
 )
 
@@ -4946,7 +4946,7 @@ local function GetTargetPerytonCount(
 
     if TargetBackpack then
 
-        Count += #GetPerytonFromContainer(
+        Count += #GetDragonflyFromContainer(
             TargetBackpack
         )
 
@@ -4959,7 +4959,7 @@ local function GetTargetPerytonCount(
 
     if TargetCharacter then
 
-        Count += #GetPerytonFromContainer(
+        Count += #GetDragonflyFromContainer(
             TargetCharacter
         )
 
@@ -4977,11 +4977,11 @@ end
 
 local function GetValidTradeTarget()
 
-    local LocalPeryton =
-        GetLocalPerytonCount()
+    local LocalDragonfly =
+        GetLocalDragonflyCount()
 
 
-    if LocalPeryton <= 12 then
+    if LocalDragonfly <= 12 then
 
         return nil
 
@@ -5001,13 +5001,13 @@ local function GetValidTradeTarget()
         if Target
             and Target ~= LP then
 
-            local TargetPeryton =
-                GetTargetPerytonCount(
+            local TargetDragonfly =
+                GetTargetDragonflyCount(
                     Target
                 )
 
 
-            if TargetPeryton < 12 then
+            if TargetDragonfly < 12 then
 
                 return Target
 
@@ -5167,13 +5167,13 @@ local function StateTradeRequest()
     end
 
 
-    local TargetPeryton =
-        GetTargetPerytonCount(
+    local TargetDragonfly =
+        GetTargetDragonflyCount(
             Target
         )
 
-    local LocalPeryton =
-        GetLocalPerytonCount()
+    local LocalDragonfly =
+        GetLocalDragonflyCount()
 
 
     Log(
@@ -5182,13 +5182,13 @@ local function StateTradeRequest()
     )
 
     Log(
-        "TARGET PERYTON:",
-        TargetPeryton
+        "TARGET Dragonfly:",
+        TargetDragonfly
     )
 
     Log(
-        "LOCAL PERYTON:",
-        LocalPeryton
+        "LOCAL Dragonfly:",
+        LocalDragonfly
     )
 
 
@@ -5196,8 +5196,8 @@ local function StateTradeRequest()
     -- FINAL CONDITION
     --==================================================
 
-    if TargetPeryton >= 12
-        or LocalPeryton <= 12 then
+    if TargetDragonfly >= 12
+        or LocalDragonfly <= 12 then
 
         TradeRunning =
             false
@@ -5279,20 +5279,20 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- GET PERYTON
+    -- GET Dragonfly
     --==================================================
 
-    local Perytons =
-        GetPerytonFromContainer(
+    local Dragonflys =
+        GetDragonflyFromContainer(
             Backpack,
-            TRADE_MAX_PERYTON
+            TRADE_MAX_Dragonfly
         )
 
 
-    if #Perytons == 0 then
+    if #Dragonflys == 0 then
 
         Log(
-            "NO PERYTON"
+            "NO Dragonfly"
         )
 
 
@@ -5307,11 +5307,11 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- ADD PERYTON
+    -- ADD Dragonfly
     --==================================================
 
     SetState(
-        "ADD PERYTON"
+        "ADD Dragonfly"
     )
 
 
@@ -5320,7 +5320,7 @@ local function StateTradeRequest()
 
 
     for _, Pet in ipairs(
-        Perytons
+        Dragonflys
     ) do
 
         if not Running then
@@ -5344,7 +5344,7 @@ local function StateTradeRequest()
 
 
         if Added >=
-            TRADE_MAX_PERYTON then
+            TRADE_MAX_Dragonfly then
 
             break
 
@@ -5366,7 +5366,7 @@ local function StateTradeRequest()
 
 
     Log(
-        "ADDED PERYTON:",
+        "ADDED Dragonfly:",
         Added
     )
 
@@ -5787,7 +5787,7 @@ Log(
 
 Log(
     "TRADE MAX:",
-    TRADE_MAX_PERYTON
+    TRADE_MAX_Dragonfly
 )
 
 Log(
