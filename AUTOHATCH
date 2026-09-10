@@ -1,17 +1,19 @@
---//==================================================
---// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
+--//====================================a==============
+--// AUTO HATCH + AUTO SELL + CONFIGURABLE AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
 --// AUTO TRADE:
 --// TARGET PLAYER = FROM GITHUB addusername.json
 --// TARGET PERYTON < 12
 --// LOCAL PERYTON > 12
+--// TRADE PETS = SELECTED FROM GUI
+--// HATCH EGG = SELECTED FROM GUI
 --//
 --// TRADE FLOW:
 --// STOP ALL STATE
 --// -> EQUIP TRADING TICKET xN
 --// -> SEND REQUEST
---// -> ADD MAX 20 PERYTON
+--// -> ADD SELECTED TRADE PETS (MAX 20)
 --// -> ACCEPT
 --// -> CONFIRM
 --// -> UNEQUIP ALL TOOLS
@@ -155,7 +157,7 @@ local TRADE_CHECK_DELAY =
 --==================================================
 
 local SAVE_FILE =
-    "AutoHatchSpringtide_Config.json"
+    "AutoHatch_Config.json"
 
 
 local DefaultConfig = {
@@ -306,6 +308,45 @@ end
 
 
 --==================================================
+-- TRADE PET SELECTION
+--==================================================
+
+local TradePets = {}
+
+if type(SavedData) == "table"
+    and type(SavedData.TradePets) == "table" then
+
+    for _, Name in ipairs(
+        SavedData.TradePets
+    ) do
+
+        if type(Name) == "string"
+            and Name ~= "" then
+
+            table.insert(
+                TradePets,
+                Name
+            )
+
+        end
+
+    end
+
+end
+
+
+local SelectedEgg = "Springtide Egg"
+
+if type(SavedData) == "table"
+    and type(SavedData.SelectedEgg) == "string"
+    and SavedData.SelectedEgg ~= "" then
+
+    SelectedEgg = SavedData.SelectedEgg
+
+end
+
+
+--==================================================
 -- FLAGS
 --==================================================
 
@@ -363,8 +404,13 @@ local function SaveConfig()
                         Running,
 
                     SelectedPets =
-                        SelectedPets
+                        SelectedPets,
 
+                    TradePets =
+                        TradePets,
+
+                    SelectedEgg =
+                        SelectedEgg
                 }
 
                 writefile(
@@ -543,12 +589,7 @@ local Main =
     )
 
 Main.Size =
-    UDim2.new(
-        0,
-        340,
-        0,
-        430
-    )
+    UDim2.new(0, 340, 0, 650)
 
 Main.Position =
     UDim2.new(
@@ -1301,1404 +1342,787 @@ CreateConfigBox(
 
 
 --==================================================
--- PET SELECTOR
+-- SELL PET SELECTOR
 --==================================================
 
 local PetSelector =
-    Instance.new(
-        "Frame"
-    )
+    Instance.new("Frame")
 
 PetSelector.Size =
-    UDim2.new(
-        1,
-        -10,
-        0,
-        65
-    )
+    UDim2.new(1, -10, 0, 65)
 
 PetSelector.Position =
-    UDim2.new(
-        0,
-        5,
-        0,
-        155
-    )
+    UDim2.new(0, 5, 0, 155)
 
 PetSelector.BackgroundColor3 =
-    Color3.fromRGB(
-        25,
-        25,
-        25
-    )
+    Color3.fromRGB(25, 25, 25)
 
-PetSelector.BorderSizePixel =
-    0
-
-PetSelector.Parent =
-    Main
-
+PetSelector.BorderSizePixel = 0
+PetSelector.Parent = Main
 
 local PetSelectorCorner =
-    Instance.new(
-        "UICorner"
-    )
+    Instance.new("UICorner")
 
 PetSelectorCorner.CornerRadius =
-    UDim.new(
-        0,
-        5
-    )
-
-PetSelectorCorner.Parent =
-    PetSelector
-
-
---==================================================
--- SEARCH BOX
---==================================================
+    UDim.new(0, 5)
+PetSelectorCorner.Parent = PetSelector
 
 local SearchBox =
-    Instance.new(
-        "TextBox"
-    )
+    Instance.new("TextBox")
 
 SearchBox.Size =
-    UDim2.new(
-        1,
-        -80,
-        0,
-        25
-    )
-
+    UDim2.new(1, -80, 0, 25)
 SearchBox.Position =
-    UDim2.new(
-        0,
-        5,
-        0,
-        5
-    )
-
+    UDim2.new(0, 5, 0, 5)
 SearchBox.BackgroundColor3 =
-    Color3.fromRGB(
-        40,
-        40,
-        40
-    )
-
+    Color3.fromRGB(40, 40, 40)
 SearchBox.Text =
     "SELECT PET / SEARCH"
-
 SearchBox.PlaceholderText =
     "Search pet..."
-
 SearchBox.TextColor3 =
-    Color3.fromRGB(
-        255,
-        255,
-        255
-    )
-
+    Color3.fromRGB(255, 255, 255)
 SearchBox.PlaceholderColor3 =
-    Color3.fromRGB(
-        130,
-        130,
-        130
-    )
+    Color3.fromRGB(130, 130, 130)
+SearchBox.TextSize = 9
+SearchBox.Font = Enum.Font.GothamBold
+SearchBox.ClearTextOnFocus = true
+SearchBox.BorderSizePixel = 0
+SearchBox.Parent = PetSelector
 
-SearchBox.TextSize =
-    9
-
-SearchBox.Font =
-    Enum.Font.GothamBold
-
-SearchBox.ClearTextOnFocus =
-    true
-
-SearchBox.BorderSizePixel =
-    0
-
-SearchBox.Parent =
-    PetSelector
-
-
-local SearchCorner =
-    Instance.new(
-        "UICorner"
-    )
-
-SearchCorner.CornerRadius =
-    UDim.new(
-        0,
-        4
-    )
-
-SearchCorner.Parent =
-    SearchBox
-
-
---==================================================
--- ADD
---==================================================
+local SearchCorner = Instance.new("UICorner")
+SearchCorner.CornerRadius = UDim.new(0, 4)
+SearchCorner.Parent = SearchBox
 
 local AddButton =
-    Instance.new(
-        "TextButton"
-    )
+    Instance.new("TextButton")
 
-AddButton.Size =
-    UDim2.new(
-        0,
-        65,
-        0,
-        25
-    )
+AddButton.Size = UDim2.new(0, 65, 0, 25)
+AddButton.Position = UDim2.new(1, -70, 0, 5)
+AddButton.BackgroundColor3 = Color3.fromRGB(40, 120, 60)
+AddButton.Text = "ADD"
+AddButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AddButton.TextSize = 9
+AddButton.Font = Enum.Font.GothamBold
+AddButton.BorderSizePixel = 0
+AddButton.Parent = PetSelector
 
-AddButton.Position =
-    UDim2.new(
-        1,
-        -70,
-        0,
-        5
-    )
-
-AddButton.BackgroundColor3 =
-    Color3.fromRGB(
-        40,
-        120,
-        60
-    )
-
-AddButton.Text =
-    "ADD"
-
-AddButton.TextColor3 =
-    Color3.fromRGB(
-        255,
-        255,
-        255
-    )
-
-AddButton.TextSize =
-    9
-
-AddButton.Font =
-    Enum.Font.GothamBold
-
-AddButton.BorderSizePixel =
-    0
-
-AddButton.Parent =
-    PetSelector
-
-
-local AddCorner =
-    Instance.new(
-        "UICorner"
-    )
-
-AddCorner.CornerRadius =
-    UDim.new(
-        0,
-        4
-    )
-
-AddCorner.Parent =
-    AddButton
-
-
---==================================================
--- DROPDOWN
---==================================================
+local AddCorner = Instance.new("UICorner")
+AddCorner.CornerRadius = UDim.new(0, 4)
+AddCorner.Parent = AddButton
 
 local DropdownList =
-    Instance.new(
-        "ScrollingFrame"
-    )
+    Instance.new("ScrollingFrame")
 
-DropdownList.Size =
-    UDim2.new(
-        1,
-        -80,
-        0,
-        100
-    )
+DropdownList.Size = UDim2.new(1, -80, 0, 100)
+DropdownList.Position = UDim2.new(0, 5, 0, 32)
+DropdownList.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+DropdownList.BorderSizePixel = 0
+DropdownList.ScrollBarThickness = 3
+DropdownList.Visible = false
+DropdownList.ZIndex = 50
+DropdownList.CanvasSize = UDim2.new(0, 0, 0, 0)
+DropdownList.Parent = PetSelector
 
-DropdownList.Position =
-    UDim2.new(
-        0,
-        5,
-        0,
-        32
-    )
-
-DropdownList.BackgroundColor3 =
-    Color3.fromRGB(
-        12,
-        12,
-        12
-    )
-
-DropdownList.BorderSizePixel =
-    0
-
-DropdownList.ScrollBarThickness =
-    3
-
-DropdownList.Visible =
-    false
-
-DropdownList.ZIndex =
-    50
-
-DropdownList.CanvasSize =
-    UDim2.new(
-        0,
-        0,
-        0,
-        0
-    )
-
-DropdownList.Parent =
-    PetSelector
-
-
-local DropdownLayout =
-    Instance.new(
-        "UIListLayout"
-    )
-
-DropdownLayout.Padding =
-    UDim.new(
-        0,
-        2
-    )
-
-DropdownLayout.Parent =
-    DropdownList
-
+local DropdownLayout = Instance.new("UIListLayout")
+DropdownLayout.Padding = UDim.new(0, 2)
+DropdownLayout.Parent = DropdownList
 
 --==================================================
--- SELECTED TITLE
+-- SELECTED SELL PETS
 --==================================================
 
 local SelectedTitle =
-    Instance.new(
-        "TextLabel"
-    )
-
-SelectedTitle.Size =
-    UDim2.new(
-        1,
-        -10,
-        0,
-        15
-    )
-
-SelectedTitle.Position =
-    UDim2.new(
-        0,
-        5,
-        0,
-        225
-    )
-
-SelectedTitle.BackgroundTransparency =
-    1
-
-SelectedTitle.Text =
-    "COUNT + SELL PET"
-
-SelectedTitle.TextColor3 =
-    Color3.fromRGB(
-        180,
-        180,
-        180
-    )
-
-SelectedTitle.TextSize =
-    8
-
-SelectedTitle.Font =
-    Enum.Font.GothamBold
-
-SelectedTitle.TextXAlignment =
-    Enum.TextXAlignment.Left
-
-SelectedTitle.Parent =
-    Main
-
-
---==================================================
--- TARGET COUNT
---==================================================
+    Instance.new("TextLabel")
+SelectedTitle.Size = UDim2.new(1, -10, 0, 15)
+SelectedTitle.Position = UDim2.new(0, 5, 0, 225)
+SelectedTitle.BackgroundTransparency = 1
+SelectedTitle.Text = "COUNT + SELL PET"
+SelectedTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+SelectedTitle.TextSize = 8
+SelectedTitle.Font = Enum.Font.GothamBold
+SelectedTitle.TextXAlignment = Enum.TextXAlignment.Left
+SelectedTitle.Parent = Main
 
 local TargetCountLabel =
-    Instance.new(
-        "TextLabel"
-    )
-
-TargetCountLabel.Size =
-    UDim2.new(
-        0,
-        120,
-        0,
-        15
-    )
-
-TargetCountLabel.Position =
-    UDim2.new(
-        1,
-        -125,
-        0,
-        225
-    )
-
-TargetCountLabel.BackgroundTransparency =
-    1
-
-TargetCountLabel.Text =
-    "TARGET: 0"
-
-TargetCountLabel.TextColor3 =
-    Color3.fromRGB(
-        120,
-        200,
-        140
-    )
-
-TargetCountLabel.TextSize =
-    8
-
-TargetCountLabel.Font =
-    Enum.Font.GothamBold
-
-TargetCountLabel.TextXAlignment =
-    Enum.TextXAlignment.Right
-
-TargetCountLabel.Parent =
-    Main
-
-
---==================================================
--- SELECTED FRAME
---==================================================
+    Instance.new("TextLabel")
+TargetCountLabel.Size = UDim2.new(0, 120, 0, 15)
+TargetCountLabel.Position = UDim2.new(1, -125, 0, 225)
+TargetCountLabel.BackgroundTransparency = 1
+TargetCountLabel.Text = "TARGET: 0"
+TargetCountLabel.TextColor3 = Color3.fromRGB(120, 200, 140)
+TargetCountLabel.TextSize = 8
+TargetCountLabel.Font = Enum.Font.GothamBold
+TargetCountLabel.TextXAlignment = Enum.TextXAlignment.Right
+TargetCountLabel.Parent = Main
 
 local SelectedFrame =
-    Instance.new(
-        "ScrollingFrame"
-    )
+    Instance.new("ScrollingFrame")
+SelectedFrame.Size = UDim2.new(1, -10, 0, 55)
+SelectedFrame.Position = UDim2.new(0, 5, 0, 242)
+SelectedFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+SelectedFrame.BorderSizePixel = 0
+SelectedFrame.ScrollBarThickness = 3
+SelectedFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+SelectedFrame.Parent = Main
 
-SelectedFrame.Size =
-    UDim2.new(
-        1,
-        -10,
-        0,
-        75
-    )
+local SelectedCorner = Instance.new("UICorner")
+SelectedCorner.CornerRadius = UDim.new(0, 5)
+SelectedCorner.Parent = SelectedFrame
 
-SelectedFrame.Position =
-    UDim2.new(
-        0,
-        5,
-        0,
-        242
-    )
+local SelectedLayout = Instance.new("UIListLayout")
+SelectedLayout.Padding = UDim.new(0, 2)
+SelectedLayout.Parent = SelectedFrame
 
-SelectedFrame.BackgroundColor3 =
-    Color3.fromRGB(
-        12,
-        12,
-        12
-    )
+--==================================================
+-- TRADE PET SELECTOR
+-- GREEN = TRADE
+--==================================================
 
-SelectedFrame.BorderSizePixel =
-    0
+local TradePetSelector =
+    Instance.new("Frame")
+TradePetSelector.Size = UDim2.new(1, -10, 0, 65)
+TradePetSelector.Position = UDim2.new(0, 5, 0, 305)
+TradePetSelector.BackgroundColor3 = Color3.fromRGB(20, 35, 24)
+TradePetSelector.BorderSizePixel = 0
+TradePetSelector.Parent = Main
 
-SelectedFrame.ScrollBarThickness =
-    3
+local TradePetSelectorCorner = Instance.new("UICorner")
+TradePetSelectorCorner.CornerRadius = UDim.new(0, 5)
+TradePetSelectorCorner.Parent = TradePetSelector
 
-SelectedFrame.CanvasSize =
-    UDim2.new(
-        0,
-        0,
-        0,
-        0
-    )
+local TradeSearchBox = Instance.new("TextBox")
+TradeSearchBox.Size = UDim2.new(1, -80, 0, 25)
+TradeSearchBox.Position = UDim2.new(0, 5, 0, 5)
+TradeSearchBox.BackgroundColor3 = Color3.fromRGB(30, 65, 38)
+TradeSearchBox.Text = "SELECT TRADE PET / SEARCH"
+TradeSearchBox.PlaceholderText = "Search pet to trade..."
+TradeSearchBox.TextColor3 = Color3.fromRGB(170, 255, 185)
+TradeSearchBox.PlaceholderColor3 = Color3.fromRGB(120, 170, 130)
+TradeSearchBox.TextSize = 9
+TradeSearchBox.Font = Enum.Font.GothamBold
+TradeSearchBox.ClearTextOnFocus = true
+TradeSearchBox.BorderSizePixel = 0
+TradeSearchBox.Parent = TradePetSelector
 
-SelectedFrame.Parent =
-    Main
+local TradeSearchCorner = Instance.new("UICorner")
+TradeSearchCorner.CornerRadius = UDim.new(0, 4)
+TradeSearchCorner.Parent = TradeSearchBox
 
+local TradeAddButton = Instance.new("TextButton")
+TradeAddButton.Size = UDim2.new(0, 65, 0, 25)
+TradeAddButton.Position = UDim2.new(1, -70, 0, 5)
+TradeAddButton.BackgroundColor3 = Color3.fromRGB(35, 150, 65)
+TradeAddButton.Text = "TRADE"
+TradeAddButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TradeAddButton.TextSize = 9
+TradeAddButton.Font = Enum.Font.GothamBold
+TradeAddButton.BorderSizePixel = 0
+TradeAddButton.Parent = TradePetSelector
 
-local SelectedCorner =
-    Instance.new(
-        "UICorner"
-    )
+local TradeAddCorner = Instance.new("UICorner")
+TradeAddCorner.CornerRadius = UDim.new(0, 4)
+TradeAddCorner.Parent = TradeAddButton
 
-SelectedCorner.CornerRadius =
-    UDim.new(
-        0,
-        5
-    )
+local TradeDropdownList = Instance.new("ScrollingFrame")
+TradeDropdownList.Size = UDim2.new(1, -10, 0, 100)
+TradeDropdownList.Position = UDim2.new(0, 5, 0, 32)
+TradeDropdownList.BackgroundColor3 = Color3.fromRGB(8, 18, 10)
+TradeDropdownList.BorderSizePixel = 0
+TradeDropdownList.ScrollBarThickness = 3
+TradeDropdownList.Visible = false
+TradeDropdownList.ZIndex = 60
+TradeDropdownList.CanvasSize = UDim2.new(0, 0, 0, 0)
+TradeDropdownList.Parent = TradePetSelector
 
-SelectedCorner.Parent =
-    SelectedFrame
+local TradeDropdownLayout = Instance.new("UIListLayout")
+TradeDropdownLayout.Padding = UDim.new(0, 2)
+TradeDropdownLayout.Parent = TradeDropdownList
 
+local TradeSelectedTitle = Instance.new("TextLabel")
+TradeSelectedTitle.Size = UDim2.new(1, -10, 0, 15)
+TradeSelectedTitle.Position = UDim2.new(0, 5, 0, 375)
+TradeSelectedTitle.BackgroundTransparency = 1
+TradeSelectedTitle.Text = "🟢 TRADE PETS"
+TradeSelectedTitle.TextColor3 = Color3.fromRGB(100, 255, 130)
+TradeSelectedTitle.TextSize = 8
+TradeSelectedTitle.Font = Enum.Font.GothamBold
+TradeSelectedTitle.TextXAlignment = Enum.TextXAlignment.Left
+TradeSelectedTitle.Parent = Main
 
-local SelectedLayout =
-    Instance.new(
-        "UIListLayout"
-    )
+local TradeCountLabel = Instance.new("TextLabel")
+TradeCountLabel.Size = UDim2.new(0, 120, 0, 15)
+TradeCountLabel.Position = UDim2.new(1, -125, 0, 375)
+TradeCountLabel.BackgroundTransparency = 1
+TradeCountLabel.Text = "TRADE: 0"
+TradeCountLabel.TextColor3 = Color3.fromRGB(100, 255, 130)
+TradeCountLabel.TextSize = 8
+TradeCountLabel.Font = Enum.Font.GothamBold
+TradeCountLabel.TextXAlignment = Enum.TextXAlignment.Right
+TradeCountLabel.Parent = Main
 
-SelectedLayout.Padding =
-    UDim.new(
-        0,
-        2
-    )
+local TradeSelectedFrame = Instance.new("ScrollingFrame")
+TradeSelectedFrame.Size = UDim2.new(1, -10, 0, 55)
+TradeSelectedFrame.Position = UDim2.new(0, 5, 0, 392)
+TradeSelectedFrame.BackgroundColor3 = Color3.fromRGB(8, 18, 10)
+TradeSelectedFrame.BorderSizePixel = 0
+TradeSelectedFrame.ScrollBarThickness = 3
+TradeSelectedFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+TradeSelectedFrame.Parent = Main
 
-SelectedLayout.Parent =
-    SelectedFrame
+local TradeSelectedCorner = Instance.new("UICorner")
+TradeSelectedCorner.CornerRadius = UDim.new(0, 5)
+TradeSelectedCorner.Parent = TradeSelectedFrame
 
+local TradeSelectedLayout = Instance.new("UIListLayout")
+TradeSelectedLayout.Padding = UDim.new(0, 2)
+TradeSelectedLayout.Parent = TradeSelectedFrame
+
+--==================================================
+-- EGG SELECTOR
+--==================================================
+
+local EggList = {
+    "Common Egg",
+    "Uncommon Egg",
+    "Rare Egg",
+    "Legendary Egg",
+    "Mythical Egg",
+    "Bug Egg",
+    "Jungle Egg",
+    "Night Egg",
+    "Bee Egg",
+    "Anti Bee Egg",
+    "Common Summer Egg",
+    "Rare Summer Egg",
+    "Paradise Egg",
+    "Oasis Egg",
+    "Dinosaur Egg",
+    "Primal Egg",
+    "Zen Egg",
+    "Corrupted Zen Egg",
+    "Gourmet Egg",
+    "Sprout Egg",
+    "Enchanted Egg",
+    "Fall Egg",
+    "Spooky Egg",
+    "Safari Egg",
+    "Gem Egg",
+    "Lich Crystal Egg",
+    "Christmas Egg",
+    "Winter Egg",
+    "New Year's Egg",
+    "Carnival Egg",
+    "Bird Egg",
+    "Golden Egg",
+    "Gilded Choc Golden Egg",
+    "Springtide Egg",
+    "Gilded Choc Springtide Egg",
+    "Hive Egg",
+    "Campfire Egg",
+    "Coastal Egg",
+    "Black Spotty Egg",
+    "Rainbow Campfire Egg",
+    "Moon Egg",
+    "Beanpod Egg",
+}
+
+local EggSelector = Instance.new("Frame")
+EggSelector.Size = UDim2.new(1, -10, 0, 65)
+EggSelector.Position = UDim2.new(0, 5, 0, 455)
+EggSelector.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+EggSelector.BorderSizePixel = 0
+EggSelector.Parent = Main
+
+local EggSelectorCorner = Instance.new("UICorner")
+EggSelectorCorner.CornerRadius = UDim.new(0, 5)
+EggSelectorCorner.Parent = EggSelector
+
+local EggSearchBox = Instance.new("TextBox")
+EggSearchBox.Size = UDim2.new(1, -10, 0, 25)
+EggSearchBox.Position = UDim2.new(0, 5, 0, 5)
+EggSearchBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+EggSearchBox.Text = SelectedEgg
+EggSearchBox.PlaceholderText = "Select egg..."
+EggSearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+EggSearchBox.TextSize = 9
+EggSearchBox.Font = Enum.Font.GothamBold
+EggSearchBox.ClearTextOnFocus = true
+EggSearchBox.BorderSizePixel = 0
+EggSearchBox.Parent = EggSelector
+
+local EggSearchCorner = Instance.new("UICorner")
+EggSearchCorner.CornerRadius = UDim.new(0, 4)
+EggSearchCorner.Parent = EggSearchBox
+
+local EggDropdownList = Instance.new("ScrollingFrame")
+EggDropdownList.Size = UDim2.new(1, -10, 0, 100)
+EggDropdownList.Position = UDim2.new(0, 5, 0, 32)
+EggDropdownList.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+EggDropdownList.BorderSizePixel = 0
+EggDropdownList.ScrollBarThickness = 3
+EggDropdownList.Visible = false
+EggDropdownList.ZIndex = 70
+EggDropdownList.CanvasSize = UDim2.new(0, 0, 0, 0)
+EggDropdownList.Parent = EggSelector
+
+local EggDropdownLayout = Instance.new("UIListLayout")
+EggDropdownLayout.Padding = UDim.new(0, 2)
+EggDropdownLayout.Parent = EggDropdownList
+
+local EggTitle = Instance.new("TextLabel")
+EggTitle.Size = UDim2.new(1, -10, 0, 15)
+EggTitle.Position = UDim2.new(0, 5, 0, 438)
+EggTitle.BackgroundTransparency = 1
+EggTitle.Text = "HATCH EGG"
+EggTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+EggTitle.TextSize = 8
+EggTitle.Font = Enum.Font.GothamBold
+EggTitle.TextXAlignment = Enum.TextXAlignment.Left
+EggTitle.Parent = Main
 
 --==================================================
 -- LOG FRAME
 --==================================================
 
-local LogFrame =
-    Instance.new(
-        "Frame"
-    )
-
-LogFrame.Size =
-    UDim2.new(
-        1,
-        -10,
-        0,
-        105
-    )
-
-LogFrame.Position =
-    UDim2.new(
-        0,
-        5,
-        0,
-        320
-    )
-
-LogFrame.BackgroundColor3 =
-    Color3.fromRGB(
-        12,
-        12,
-        12
-    )
-
-LogFrame.BorderSizePixel =
-    0
-
-LogFrame.Parent =
-    Main
-
-
-local LogCorner =
-    Instance.new(
-        "UICorner"
-    )
-
-LogCorner.CornerRadius =
-    UDim.new(
-        0,
-        5
-    )
-
-LogCorner.Parent =
-    LogFrame
-
-
-local Scroll =
-    Instance.new(
-        "ScrollingFrame"
-    )
-
-Scroll.Size =
-    UDim2.new(
-        1,
-        -8,
-        1,
-        -8
-    )
-
-Scroll.Position =
-    UDim2.new(
-        0,
-        4,
-        0,
-        4
-    )
-
-Scroll.BackgroundTransparency =
-    1
-
-Scroll.BorderSizePixel =
-    0
-
-Scroll.ScrollBarThickness =
-    3
-
-Scroll.CanvasSize =
-    UDim2.new(
-        0,
-        0,
-        0,
-        0
-    )
-
-Scroll.Parent =
-    LogFrame
-
-
-local Layout =
-    Instance.new(
-        "UIListLayout"
-    )
-
-Layout.Padding =
-    UDim.new(
-        0,
-        1
-    )
-
-Layout.Parent =
-    Scroll
-
-
---==================================================
--- LOG
---==================================================
-
-local MAX_LOGS =
-    40
-
-local LogObjects = {}
-
-local LastLog =
-    ""
-
-local LastLogTime =
-    0
-
-
-local function Log(...)
-
-    local Args =
-        {...}
-
-    local Message =
-        ""
-
-    for i, Value in ipairs(
-        Args
-    ) do
-
-        if i > 1 then
-            Message =
-                Message .. " "
-        end
-
-        Message =
-            Message .. tostring(Value)
-
-    end
-
-
-    local Now =
-        os.clock()
-
-
-    if Message == LastLog
-        and Now - LastLogTime < 1 then
-
-        return
-
-    end
-
-
-    LastLog =
-        Message
-
-    LastLogTime =
-        Now
-
-
-    print(
-        "[AUTOHATCH]",
-        Message
-    )
-
-
-    local Label =
-        Instance.new(
-            "TextLabel"
-        )
-
-    Label.Size =
-        UDim2.new(
-            1,
-            -5,
-            0,
-            14
-        )
-
-    Label.BackgroundTransparency =
-        1
-
-    Label.Text =
-        Message
-
-    Label.TextColor3 =
-        Color3.fromRGB(
-            205,
-            205,
-            205
-        )
-
-    Label.TextSize =
-        8
-
-    Label.Font =
-        Enum.Font.Code
-
-    Label.TextXAlignment =
-        Enum.TextXAlignment.Left
-
-    Label.Parent =
-        Scroll
-
-
-    table.insert(
-        LogObjects,
-        Label
-    )
-
-
-    while #LogObjects > MAX_LOGS do
-
-        local Old =
-            table.remove(
-                LogObjects,
-                1
-            )
-
-        if Old then
-            Old:Destroy()
-        end
-
-    end
-
-
-    task.defer(function()
-
-        Scroll.CanvasSize =
-            UDim2.new(
-                0,
-                0,
-                0,
-                Layout.AbsoluteContentSize.Y
-                    + 5
-            )
-
-        Scroll.CanvasPosition =
-            Vector2.new(
-                0,
-                math.max(
-                    0,
-                    Layout.AbsoluteContentSize.Y
-                        - Scroll.AbsoluteSize.Y
-                )
-            )
-
-    end)
-
-end
-
-
---==================================================
--- STATE
---==================================================
-
-local function SetState(State)
-
-    if CurrentState == State then
-        return
-    end
-
-    CurrentState =
-        State
-
-    StateLabel.Text =
-        State
-
-    Log(
-        "STATE →",
-        State
-    )
-
-end
-
-
---==================================================
--- UPDATE TOGGLE
---==================================================
-
-local function UpdateToggle()
-
-    if Running then
-
-        Toggle.Text =
-            "ON"
-
-        Toggle.BackgroundColor3 =
-            Color3.fromRGB(
-                40,
-                130,
-                60
-            )
-
-    else
-
-        Toggle.Text =
-            "OFF"
-
-        Toggle.BackgroundColor3 =
-            Color3.fromRGB(
-                100,
-                40,
-                40
-            )
-
-    end
-
-
-    SaveConfig()
-
-end
-
+local LogFrame = Instance.new("Frame")
+LogFrame.Size = UDim2.new(1, -10, 0, 105)
+LogFrame.Position = UDim2.new(0, 5, 0, 530)
+LogFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+LogFrame.BorderSizePixel = 0
+LogFrame.Parent = Main
+
+local LogCorner = Instance.new("UICorner")
+LogCorner.CornerRadius = UDim.new(0, 5)
+LogCorner.Parent = LogFrame
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -8, 1, -8)
+Scroll.Position = UDim2.new(0, 4, 0, 4)
+Scroll.BackgroundTransparency = 1
+Scroll.BorderSizePixel = 0
+Scroll.ScrollBarThickness = 3
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+Scroll.Parent = LogFrame
+
+local LogLayout = Instance.new("UIListLayout")
+LogLayout.Padding = UDim.new(0, 2)
+LogLayout.Parent = Scroll
 
 --==================================================
 -- MINIMIZE
 --==================================================
 
-local Minimized =
-    false
-
+local Minimized = false
 
 local NormalSize =
-    UDim2.new(
-        0,
-        340,
-        0,
-        430
-    )
-
+    UDim2.new(0, 340, 0, 650)
 
 local MiniSize =
-    UDim2.new(
-        0,
-        250,
-        0,
-        30
-    )
-
+    UDim2.new(0, 250, 0, 30)
 
 Minimize.MouseButton1Click:Connect(function()
-
-    Minimized =
-        not Minimized
-
+    Minimized = not Minimized
 
     if Minimized then
+        Main.Size = MiniSize
 
-        Main.Size =
-            MiniSize
+        ConfigFrame.Visible = false
+        PetSelector.Visible = false
+        TradePetSelector.Visible = false
+        TradeSelectedTitle.Visible = false
+        TradeCountLabel.Visible = false
+        TradeSelectedFrame.Visible = false
+        EggSelector.Visible = false
+        EggTitle.Visible = false
+        SelectedTitle.Visible = false
+        TargetCountLabel.Visible = false
+        SelectedFrame.Visible = false
+        LogFrame.Visible = false
 
-        ConfigFrame.Visible =
-            false
-
-        PetSelector.Visible =
-            false
-
-        SelectedTitle.Visible =
-            false
-
-        TargetCountLabel.Visible =
-            false
-
-        SelectedFrame.Visible =
-            false
-
-        LogFrame.Visible =
-            false
-
-        Minimize.Text =
-            "+"
-
+        Minimize.Text = "+"
     else
+        Main.Size = NormalSize
 
-        Main.Size =
-            NormalSize
+        ConfigFrame.Visible = true
+        PetSelector.Visible = true
+        TradePetSelector.Visible = true
+        TradeSelectedTitle.Visible = true
+        TradeCountLabel.Visible = true
+        TradeSelectedFrame.Visible = true
+        EggSelector.Visible = true
+        EggTitle.Visible = true
+        SelectedTitle.Visible = true
+        TargetCountLabel.Visible = true
+        SelectedFrame.Visible = true
+        LogFrame.Visible = true
 
-        ConfigFrame.Visible =
-            true
-
-        PetSelector.Visible =
-            true
-
-        SelectedTitle.Visible =
-            true
-
-        TargetCountLabel.Visible =
-            true
-
-        SelectedFrame.Visible =
-            true
-
-        LogFrame.Visible =
-            true
-
-        Minimize.Text =
-            "−"
-
+        Minimize.Text = "−"
     end
-
 end)
-
 
 --==================================================
--- DRAG
---==================================================
-
-local Dragging =
-    false
-
-local DragStart =
-    nil
-
-local StartPos =
-    nil
-
-
-Header.InputBegan:Connect(function(Input)
-
-    if Input.UserInputType ==
-        Enum.UserInputType.MouseButton1 then
-
-        Dragging =
-            true
-
-        DragStart =
-            Input.Position
-
-        StartPos =
-            Main.Position
-
-    end
-
-end)
-
-
-Header.InputEnded:Connect(function(Input)
-
-    if Input.UserInputType ==
-        Enum.UserInputType.MouseButton1 then
-
-        Dragging =
-            false
-
-    end
-
-end)
-
-
-UIS.InputChanged:Connect(function(Input)
-
-    if not Dragging then
-        return
-    end
-
-    if Input.UserInputType ~=
-        Enum.UserInputType.MouseMovement then
-
-        return
-
-    end
-
-    if not DragStart
-        or not StartPos then
-
-        return
-
-    end
-
-
-    local Delta =
-        Input.Position
-        - DragStart
-
-
-    Main.Position =
-        UDim2.new(
-
-            StartPos.X.Scale,
-
-            StartPos.X.Offset
-                + Delta.X,
-
-            StartPos.Y.Scale,
-
-            StartPos.Y.Offset
-                + Delta.Y
-
-        )
-
-end)
-
-
---==================================================
--- SELECTED PET
+-- SELL SELECTION HELPERS
 --==================================================
 
 local function IsSelected(PetName)
-
-    for _, Name in ipairs(
-        SelectedPets
-    ) do
-
+    for _, Name in ipairs(SelectedPets) do
         if Name == PetName then
             return true
         end
-
     end
-
     return false
-
 end
 
-
 local function UpdateSelectedPets()
-
-    for _, Object in ipairs(
-        SelectedFrame:GetChildren()
-    ) do
-
+    for _, Object in ipairs(SelectedFrame:GetChildren()) do
         if Object:IsA("Frame") then
             Object:Destroy()
         end
-
     end
 
+    for _, PetName in ipairs(SelectedPets) do
+        local Row = Instance.new("Frame")
+        Row.Size = UDim2.new(1, -5, 0, 20)
+        Row.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        Row.BorderSizePixel = 0
+        Row.Parent = SelectedFrame
 
-    for _, PetName in ipairs(
-        SelectedPets
-    ) do
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Size = UDim2.new(1, -60, 1, 0)
+        NameLabel.Position = UDim2.new(0, 6, 0, 0)
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Text = "• " .. PetName
+        NameLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
+        NameLabel.TextSize = 8
+        NameLabel.Font = Enum.Font.Gotham
+        NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        NameLabel.Parent = Row
 
-        local Row =
-            Instance.new(
-                "Frame"
-            )
-
-        Row.Size =
-            UDim2.new(
-                1,
-                -5,
-                0,
-                20
-            )
-
-        Row.BackgroundColor3 =
-            Color3.fromRGB(
-                30,
-                30,
-                30
-            )
-
-        Row.BorderSizePixel =
-            0
-
-        Row.Parent =
-            SelectedFrame
-
-
-        local NameLabel =
-            Instance.new(
-                "TextLabel"
-            )
-
-        NameLabel.Size =
-            UDim2.new(
-                1,
-                -60,
-                1,
-                0
-            )
-
-        NameLabel.Position =
-            UDim2.new(
-                0,
-                6,
-                0,
-                0
-            )
-
-        NameLabel.BackgroundTransparency =
-            1
-
-        NameLabel.Text =
-            "• " .. PetName
-
-        NameLabel.TextColor3 =
-            Color3.fromRGB(
-                230,
-                230,
-                230
-            )
-
-        NameLabel.TextSize =
-            8
-
-        NameLabel.Font =
-            Enum.Font.Gotham
-
-        NameLabel.TextXAlignment =
-            Enum.TextXAlignment.Left
-
-        NameLabel.Parent =
-            Row
-
-
-        local Remove =
-            Instance.new(
-                "TextButton"
-            )
-
-        Remove.Size =
-            UDim2.new(
-                0,
-                48,
-                0,
-                16
-            )
-
-        Remove.Position =
-            UDim2.new(
-                1,
-                -53,
-                0.5,
-                -8
-            )
-
-        Remove.BackgroundColor3 =
-            Color3.fromRGB(
-                120,
-                40,
-                40
-            )
-
-        Remove.Text =
-            "X"
-
-        Remove.TextColor3 =
-            Color3.fromRGB(
-                255,
-                255,
-                255
-            )
-
-        Remove.TextSize =
-            8
-
-        Remove.Font =
-            Enum.Font.GothamBold
-
-        Remove.BorderSizePixel =
-            0
-
-        Remove.Parent =
-            Row
-
+        local Remove = Instance.new("TextButton")
+        Remove.Size = UDim2.new(0, 48, 0, 16)
+        Remove.Position = UDim2.new(1, -53, 0.5, -8)
+        Remove.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
+        Remove.Text = "X"
+        Remove.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Remove.TextSize = 8
+        Remove.Font = Enum.Font.GothamBold
+        Remove.BorderSizePixel = 0
+        Remove.Parent = Row
 
         Remove.MouseButton1Click:Connect(function()
-
-            for i, Name in ipairs(
-                SelectedPets
-            ) do
-
+            for i, Name in ipairs(SelectedPets) do
                 if Name == PetName then
-
-                    table.remove(
-                        SelectedPets,
-                        i
-                    )
-
+                    table.remove(SelectedPets, i)
                     break
-
                 end
-
             end
-
-
             SaveConfig()
-
             UpdateSelectedPets()
-
+            UpdateTargetCount()
         end)
-
     end
 
-
     task.defer(function()
-
-        SelectedFrame.CanvasSize =
-            UDim2.new(
-                0,
-                0,
-                0,
-                SelectedLayout.AbsoluteContentSize.Y
-                    + 5
-            )
-
+        SelectedFrame.CanvasSize = UDim2.new(0, 0, 0, SelectedLayout.AbsoluteContentSize.Y + 5)
     end)
-
 end
 
-
---==================================================
--- SEARCH
---==================================================
-
 local function BuildSearchResults(Search)
-
-    for _, Object in ipairs(
-        DropdownList:GetChildren()
-    ) do
-
+    for _, Object in ipairs(DropdownList:GetChildren()) do
         if Object:IsA("TextButton") then
             Object:Destroy()
         end
-
     end
 
+    Search = string.lower(Search or "")
+    local Added = 0
 
-    Search =
-        string.lower(
-            Search or ""
-        )
+    for _, PetName in ipairs(PetList) do
+        if Search == "" or string.find(string.lower(PetName), Search, 1, true) then
+            local Button = Instance.new("TextButton")
+            Button.Size = UDim2.new(1, -5, 0, 20)
+            Button.BackgroundColor3 = IsSelected(PetName) and Color3.fromRGB(55, 35, 35) or Color3.fromRGB(35, 35, 35)
+            Button.Text = PetName
+            Button.TextColor3 = Color3.fromRGB(230, 230, 230)
+            Button.TextSize = 8
+            Button.Font = Enum.Font.Gotham
+            Button.TextXAlignment = Enum.TextXAlignment.Left
+            Button.BorderSizePixel = 0
+            Button.ZIndex = 51
+            Button.Parent = DropdownList
 
-
-    local Added =
-        0
-
-
-    for _, PetName in ipairs(
-        PetList
-    ) do
-
-        if Search == ""
-            or string.find(
-                string.lower(PetName),
-                Search,
-                1,
-                true
-            ) then
-
-            local Button =
-                Instance.new(
-                    "TextButton"
-                )
-
-            Button.Size =
-                UDim2.new(
-                    1,
-                    -5,
-                    0,
-                    20
-                )
-
-            Button.BackgroundColor3 =
-                Color3.fromRGB(
-                    35,
-                    35,
-                    35
-                )
-
-            Button.Text =
-                PetName
-
-            Button.TextColor3 =
-                Color3.fromRGB(
-                    230,
-                    230,
-                    230
-                )
-
-            Button.TextSize =
-                8
-
-            Button.Font =
-                Enum.Font.Gotham
-
-            Button.TextXAlignment =
-                Enum.TextXAlignment.Left
-
-            Button.BorderSizePixel =
-                0
-
-            Button.ZIndex =
-                51
-
-            Button.Parent =
-                DropdownList
-
-
-            local Padding =
-                Instance.new(
-                    "UIPadding"
-                )
-
-            Padding.PaddingLeft =
-                UDim.new(
-                    0,
-                    6
-                )
-
-            Padding.Parent =
-                Button
-
+            local Padding = Instance.new("UIPadding")
+            Padding.PaddingLeft = UDim.new(0, 6)
+            Padding.Parent = Button
 
             Button.MouseButton1Click:Connect(function()
-
-                SearchBox.Text =
-                    PetName
-
-                DropdownList.Visible =
-                    false
-
+                SearchBox.Text = PetName
+                DropdownList.Visible = false
             end)
 
-
-            Added +=
-                1
-
-
+            Added += 1
             if Added >= 100 then
                 break
             end
-
         end
-
     end
-
 
     task.defer(function()
-
-        DropdownList.CanvasSize =
-            UDim2.new(
-                0,
-                0,
-                0,
-                DropdownLayout.AbsoluteContentSize.Y
-                    + 5
-            )
-
+        DropdownList.CanvasSize = UDim2.new(0, 0, 0, DropdownLayout.AbsoluteContentSize.Y + 5)
     end)
-
 end
 
-
 SearchBox.Focused:Connect(function()
-
-    if SearchBox.Text ==
-        "SELECT PET / SEARCH" then
-
-        SearchBox.Text =
-            ""
-
+    if SearchBox.Text == "SELECT PET / SEARCH" then
+        SearchBox.Text = ""
     end
-
-
-    BuildSearchResults(
-        SearchBox.Text
-    )
-
-
-    DropdownList.Visible =
-        true
-
+    BuildSearchResults(SearchBox.Text)
+    DropdownList.Visible = true
 end)
 
-
-SearchBox:GetPropertyChangedSignal(
-    "Text"
-):Connect(function()
-
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
     if SearchBox:IsFocused() then
-
-        BuildSearchResults(
-            SearchBox.Text
-        )
-
-        DropdownList.Visible =
-            true
-
+        BuildSearchResults(SearchBox.Text)
+        DropdownList.Visible = true
     end
-
 end)
-
 
 AddButton.MouseButton1Click:Connect(function()
-
-    local PetName =
-        SearchBox.Text
-
-
-    if not PetName
-        or PetName == ""
-        or PetName == "SELECT PET / SEARCH" then
-
-        Log(
-            "⚠ SELECT PET"
-        )
-
+    local PetName = SearchBox.Text
+    if not PetName or PetName == "" or PetName == "SELECT PET / SEARCH" then
+        Log("⚠ SELECT SELL PET")
         return
-
     end
-
 
     if not IsSelected(PetName) then
-
-        table.insert(
-            SelectedPets,
-            PetName
-        )
-
+        table.insert(SelectedPets, PetName)
         SaveConfig()
-
         UpdateSelectedPets()
-
-        Log(
-            "ADD:",
-            PetName
-        )
-
-    else
-
-        Log(
-            "PET ALREADY SELECTED:",
-            PetName
-        )
-
+        UpdateTargetCount()
+        Log("ADD SELL:", PetName)
     end
-
 end)
 
+--==================================================
+-- TRADE PET SELECTION HELPERS
+--==================================================
+
+local function IsTradePetSelected(PetName)
+    for _, Name in ipairs(TradePets) do
+        if Name == PetName then
+            return true
+        end
+    end
+    return false
+end
+
+local function UpdateTradePets()
+    for _, Object in ipairs(TradeSelectedFrame:GetChildren()) do
+        if Object:IsA("Frame") then
+            Object:Destroy()
+        end
+    end
+
+    for _, PetName in ipairs(TradePets) do
+        local Row = Instance.new("Frame")
+        Row.Size = UDim2.new(1, -5, 0, 20)
+        Row.BackgroundColor3 = Color3.fromRGB(18, 65, 28)
+        Row.BorderSizePixel = 0
+        Row.Parent = TradeSelectedFrame
+
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Size = UDim2.new(1, -60, 1, 0)
+        NameLabel.Position = UDim2.new(0, 6, 0, 0)
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Text = "🟢 " .. PetName
+        NameLabel.TextColor3 = Color3.fromRGB(120, 255, 145)
+        NameLabel.TextSize = 8
+        NameLabel.Font = Enum.Font.GothamBold
+        NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        NameLabel.Parent = Row
+
+        local Remove = Instance.new("TextButton")
+        Remove.Size = UDim2.new(0, 48, 0, 16)
+        Remove.Position = UDim2.new(1, -53, 0.5, -8)
+        Remove.BackgroundColor3 = Color3.fromRGB(100, 40, 40)
+        Remove.Text = "X"
+        Remove.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Remove.TextSize = 8
+        Remove.Font = Enum.Font.GothamBold
+        Remove.BorderSizePixel = 0
+        Remove.Parent = Row
+
+        Remove.MouseButton1Click:Connect(function()
+            for i, Name in ipairs(TradePets) do
+                if Name == PetName then
+                    table.remove(TradePets, i)
+                    break
+                end
+            end
+            SaveConfig()
+            UpdateTradePets()
+        end)
+    end
+
+    TradeCountLabel.Text = "TRADE: " .. tostring(#TradePets)
+
+    task.defer(function()
+        TradeSelectedFrame.CanvasSize = UDim2.new(0, 0, 0, TradeSelectedLayout.AbsoluteContentSize.Y + 5)
+    end)
+end
+
+local function BuildTradeSearchResults(Search)
+    for _, Object in ipairs(TradeDropdownList:GetChildren()) do
+        if Object:IsA("TextButton") then
+            Object:Destroy()
+        end
+    end
+
+    Search = string.lower(Search or "")
+    local Added = 0
+
+    for _, PetName in ipairs(PetList) do
+        if Search == "" or string.find(string.lower(PetName), Search, 1, true) then
+            local Button = Instance.new("TextButton")
+            Button.Size = UDim2.new(1, -5, 0, 20)
+            Button.BackgroundColor3 = IsTradePetSelected(PetName) and Color3.fromRGB(30, 100, 45) or Color3.fromRGB(18, 45, 24)
+            Button.Text = (IsTradePetSelected(PetName) and "🟢 " or "") .. PetName
+            Button.TextColor3 = IsTradePetSelected(PetName) and Color3.fromRGB(130, 255, 150) or Color3.fromRGB(220, 240, 225)
+            Button.TextSize = 8
+            Button.Font = Enum.Font.Gotham
+            Button.TextXAlignment = Enum.TextXAlignment.Left
+            Button.BorderSizePixel = 0
+            Button.ZIndex = 61
+            Button.Parent = TradeDropdownList
+
+            local Padding = Instance.new("UIPadding")
+            Padding.PaddingLeft = UDim.new(0, 6)
+            Padding.Parent = Button
+
+            Button.MouseButton1Click:Connect(function()
+                TradeSearchBox.Text = PetName
+                TradeDropdownList.Visible = false
+            end)
+
+            Added += 1
+            if Added >= 100 then
+                break
+            end
+        end
+    end
+
+    task.defer(function()
+        TradeDropdownList.CanvasSize = UDim2.new(0, 0, 0, TradeDropdownLayout.AbsoluteContentSize.Y + 5)
+    end)
+end
+
+TradeSearchBox.Focused:Connect(function()
+    if TradeSearchBox.Text == "SELECT TRADE PET / SEARCH" then
+        TradeSearchBox.Text = ""
+    end
+    BuildTradeSearchResults(TradeSearchBox.Text)
+    TradeDropdownList.Visible = true
+end)
+
+TradeSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    if TradeSearchBox:IsFocused() then
+        BuildTradeSearchResults(TradeSearchBox.Text)
+        TradeDropdownList.Visible = true
+    end
+end)
+
+TradeAddButton.MouseButton1Click:Connect(function()
+    local PetName = TradeSearchBox.Text
+    if not PetName or PetName == "" or PetName == "SELECT TRADE PET / SEARCH" then
+        Log("⚠ SELECT TRADE PET")
+        return
+    end
+
+    if not IsTradePetSelected(PetName) then
+        table.insert(TradePets, PetName)
+        SaveConfig()
+        UpdateTradePets()
+        Log("ADD TRADE:", PetName)
+    end
+end)
+
+--==================================================
+-- EGG SELECTION HELPERS
+--==================================================
+
+local function IsValidEggName(Name)
+    for _, EggName in ipairs(EggList) do
+        if EggName == Name then
+            return true
+        end
+    end
+    return false
+end
+
+if not IsValidEggName(SelectedEgg) then
+    SelectedEgg = "Springtide Egg"
+end
+
+local function BuildEggSearchResults(Search)
+    for _, Object in ipairs(EggDropdownList:GetChildren()) do
+        if Object:IsA("TextButton") then
+            Object:Destroy()
+        end
+    end
+
+    Search = string.lower(Search or "")
+    local Added = 0
+
+    for _, EggName in ipairs(EggList) do
+        if Search == "" or string.find(string.lower(EggName), Search, 1, true) then
+            local Button = Instance.new("TextButton")
+            Button.Size = UDim2.new(1, -5, 0, 20)
+            Button.BackgroundColor3 = EggName == SelectedEgg and Color3.fromRGB(50, 80, 55) or Color3.fromRGB(35, 35, 35)
+            Button.Text = EggName == SelectedEgg and "✓ " .. EggName or EggName
+            Button.TextColor3 = EggName == SelectedEgg and Color3.fromRGB(130, 255, 150) or Color3.fromRGB(230, 230, 230)
+            Button.TextSize = 8
+            Button.Font = Enum.Font.Gotham
+            Button.TextXAlignment = Enum.TextXAlignment.Left
+            Button.BorderSizePixel = 0
+            Button.ZIndex = 71
+            Button.Parent = EggDropdownList
+
+            local Padding = Instance.new("UIPadding")
+            Padding.PaddingLeft = UDim.new(0, 6)
+            Padding.Parent = Button
+
+            Button.MouseButton1Click:Connect(function()
+                SelectedEgg = EggName
+                EggSearchBox.Text = EggName
+                EggDropdownList.Visible = false
+                SaveConfig()
+                Log("EGG:", EggName)
+            end)
+
+            Added += 1
+            if Added >= 100 then
+                break
+            end
+        end
+    end
+
+    task.defer(function()
+        EggDropdownList.CanvasSize = UDim2.new(0, 0, 0, EggDropdownLayout.AbsoluteContentSize.Y + 5)
+    end)
+end
+
+EggSearchBox.Focused:Connect(function()
+    BuildEggSearchResults(EggSearchBox.Text)
+    EggDropdownList.Visible = true
+end)
+
+EggSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    if EggSearchBox:IsFocused() then
+        BuildEggSearchResults(EggSearchBox.Text)
+        EggDropdownList.Visible = true
+    end
+end)
 
 --==================================================
 -- FARM
@@ -2867,48 +2291,28 @@ end
 
 
 --==================================================
--- SPRINGTIDE EGG
+-- SELECTED EGG
 --==================================================
 
-local function FindSpringtideEgg()
-
-    local Character =
-        LP.Character
-
+local function FindSelectedEgg()
+    local Character = LP.Character
 
     for _, Container in ipairs({
-
         Backpack,
-
         Character
-
     }) do
-
         if Container then
-
-            for _, Tool in ipairs(
-                Container:GetChildren()
-            ) do
-
+            for _, Tool in ipairs(Container:GetChildren()) do
                 if Tool:IsA("Tool")
-                    and Tool:GetAttribute("h")
-                    == "Springtide Egg" then
-
+                    and Tool:GetAttribute("h") == SelectedEgg then
                     return Tool
-
                 end
-
             end
-
         end
-
     end
 
-
     return nil
-
 end
-
 
 --==================================================
 -- EQUIP EGG
@@ -2917,13 +2321,13 @@ end
 local function EquipEgg()
 
     local Egg =
-        FindSpringtideEgg()
+        FindSelectedEgg()
 
 
     if not Egg then
 
         Log(
-            "SPRINGTIDE EGG NOT FOUND"
+            "EGG NOT FOUND: " .. tostring(SelectedEgg)
         )
 
         return nil
@@ -4421,97 +3825,98 @@ end
 -- TRADE UTIL
 --==================================================
 
-local function GetPerytonFromContainer(
+local function GetTradePetsFromContainer(
     Container,
     MaxCount
 )
-
     local Result = {}
-
 
     if not Container then
         return Result
     end
 
-
-    for _, Tool in ipairs(
-        Container:GetChildren()
-    ) do
-
-        if Tool:IsA("Tool") then
-
-            local PetName =
-                Tool:GetAttribute(
-                    "f"
-                )
-
-            local UUID =
-                Tool:GetAttribute(
-                    "PET_UUID"
-                )
-
-
-            if PetName ==
-                "Peryton"
-                and UUID then
-
-                table.insert(
-                    Result,
-                    {
-                        Tool = Tool,
-                        UUID = UUID
-                    }
-                )
-
-
-                if MaxCount
-                    and #Result >= MaxCount then
-
-                    break
-
-                end
-
-            end
-
-        end
-
+    local SelectedMap = {}
+    for _, Name in ipairs(TradePets) do
+        SelectedMap[string.lower(Name)] = true
     end
 
+    if next(SelectedMap) == nil then
+        return Result
+    end
+
+    for _, Tool in ipairs(Container:GetChildren()) do
+        if Tool:IsA("Tool") then
+            local PetName = Tool:GetAttribute("f")
+            local UUID = Tool:GetAttribute("PET_UUID")
+
+            if PetName
+                and UUID
+                and SelectedMap[string.lower(tostring(PetName))] then
+
+                table.insert(Result, {
+                    Tool = Tool,
+                    UUID = UUID,
+                    Name = PetName
+                })
+
+                if MaxCount and #Result >= MaxCount then
+                    break
+                end
+            end
+        end
+    end
 
     return Result
-
 end
 
+-- PERYTON tetap dipakai sebagai trigger/threshold trade.
+-- Yang dikirim ke trade sekarang berasal dari TradePets.
+local function GetPerytonFromContainer(
+    Container,
+    MaxCount
+)
+    local Result = {}
+
+    if not Container then
+        return Result
+    end
+
+    for _, Tool in ipairs(Container:GetChildren()) do
+        if Tool:IsA("Tool") then
+            local PetName = Tool:GetAttribute("f")
+            local UUID = Tool:GetAttribute("PET_UUID")
+
+            if PetName == "Peryton" and UUID then
+                table.insert(Result, {
+                    Tool = Tool,
+                    UUID = UUID,
+                    Name = PetName
+                })
+
+                if MaxCount and #Result >= MaxCount then
+                    break
+                end
+            end
+        end
+    end
+
+    return Result
+end
 
 --==================================================
 -- LOCAL PERYTON COUNT
 --==================================================
 
 local function GetLocalPerytonCount()
-
-    local Count =
-        #GetPerytonFromContainer(
-            Backpack
-        )
-
-
-    local Character =
-        LP.Character
-
+    local Count = #GetPerytonFromContainer(Backpack)
+    local Character = LP.Character
 
     if Character then
-
-        Count += #GetPerytonFromContainer(
-            Character
-        )
-
+        Count += #GetPerytonFromContainer(Character)
     end
 
-
     return Count
-
 end
-
 
 --==================================================
 -- GITHUB HTTP
@@ -5097,6 +4502,10 @@ end
 
 local function ShouldTrade()
 
+    if #TradePets == 0 then
+        return false
+    end
+
     return
         GetValidTradeTarget()
         ~= nil
@@ -5141,6 +4550,19 @@ local function StateTradeRequest()
 
         return
 
+    end
+
+
+    --==================================================
+    -- REQUIRE TRADE PET SELECTION
+    --==================================================
+
+    if #TradePets == 0 then
+        Log(
+            "NO SELECTED TRADE PET"
+        )
+        TradeRunning = false
+        return
     end
 
 
@@ -5279,22 +4701,21 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- GET PERYTON
+    -- GET SELECTED TRADE PETS
     --==================================================
 
-    local Perytons =
-        GetPerytonFromContainer(
+    local TradeCandidates =
+        GetTradePetsFromContainer(
             Backpack,
             TRADE_MAX_PERYTON
         )
 
 
-    if #Perytons == 0 then
+    if #TradeCandidates == 0 then
 
         Log(
-            "NO PERYTON"
+            "NO SELECTED TRADE PET"
         )
-
 
         UnequipAllTools()
 
@@ -5307,11 +4728,11 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- ADD PERYTON
+    -- ADD SELECTED TRADE PETS
     --==================================================
 
     SetState(
-        "ADD PERYTON"
+        "ADD TRADE PET"
     )
 
 
@@ -5320,34 +4741,28 @@ local function StateTradeRequest()
 
 
     for _, Pet in ipairs(
-        Perytons
+        TradeCandidates
     ) do
 
         if not Running then
             break
         end
 
-
         AddItemEvent:FireServer(
             "Pet",
             Pet.UUID
         )
 
-
         Added +=
             1
-
 
         task.wait(
             TRADE_ADD_DELAY
         )
 
-
         if Added >=
             TRADE_MAX_PERYTON then
-
             break
-
         end
 
     end
@@ -5366,7 +4781,7 @@ local function StateTradeRequest()
 
 
     Log(
-        "ADDED PERYTON:",
+        "ADDED TRADE PET:",
         Added
     )
 
@@ -5756,9 +5171,9 @@ LoadTradeTargets()
 --==================================================
 
 UpdateSelectedPets()
-
+UpdateTradePets()
 UpdateTargetCount()
-
+EggSearchBox.Text = SelectedEgg
 UpdateToggle()
 
 
@@ -5767,7 +5182,7 @@ Log(
 )
 
 Log(
-    "AUTO HATCH READY"
+    "AUTO HATCH + SELL + TRADE READY"
 )
 
 Log(
@@ -5776,8 +5191,18 @@ Log(
 )
 
 Log(
-    "SELECTED:",
+    "SELL SELECTED:",
     #SelectedPets
+)
+
+Log(
+    "TRADE SELECTED:",
+    #TradePets
+)
+
+Log(
+    "HATCH EGG:",
+    SelectedEgg
 )
 
 Log(
@@ -5786,7 +5211,7 @@ Log(
 )
 
 Log(
-    "TRADE MAX:",
+    "TRADE MAX ITEMS:",
     TRADE_MAX_PERYTON
 )
 
