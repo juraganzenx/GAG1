@@ -1,4 +1,4 @@
---//==================================================
+--//===============================================a===
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -66,6 +66,12 @@ local TRADE_WORLD_PLACE_ID =
 
 local isTravelingToTrade =
     false
+
+local BuyTrashStarted =
+    false
+
+local LastPlaceId =
+    game.PlaceId
 
 -- TravelToTradeWorld is inside GameEvents.TradeWorld
 local GameEvents_Trade =
@@ -4608,10 +4614,11 @@ local function GetSellPetBackpackCount()
 end
 
 local function ExecuteBuyTrash()
-    if SpringtideExhaustionHandled then
-        return false
+    if BuyTrashStarted then
+        return true
     end
 
+    BuyTrashStarted = true
     SpringtideExhaustionHandled = true
 
     SetState("BUYTRASH")
@@ -4666,6 +4673,33 @@ local function ExecuteBuyTrash()
 end
 
 local function HandleSpringtideExhausted()
+
+    -- The game can keep the same Lua environment after TravelToTradeWorld.
+    -- Reset the travel lock when the place actually changes.
+    if LastPlaceId ~= game.PlaceId then
+        LastPlaceId = game.PlaceId
+        isTravelingToTrade = false
+    end
+
+    -- Never block the Trade World branch because of the old exhaustion flag.
+    -- BUYTRASH must be evaluated after we actually arrive in Trade World.
+    if IsTradeWorld() then
+        if FindSpringtideEgg() then
+            return false
+        end
+
+        local Count = GetSellPetBackpackCount()
+
+        Log("TRADE WORLD - SELL PET BACKPACK COUNT:", Count)
+
+        if Count < SPRINGTIDE_BACKPACK_LIMIT then
+            return ExecuteBuyTrash()
+        end
+
+        Log("SELL PET COUNT >= 300 - KICK")
+        LP:Kick("Sell Pet Backpack sudah 300 atau lebih.")
+        return true
+    end
 
     if SpringtideExhaustionHandled then
         return true
@@ -4745,38 +4779,6 @@ local function HandleSpringtideExhausted()
     end
 
 
-    --==================================================
-    -- ALREADY IN TRADE WORLD
-    -- COUNT SELL-TARGET PETS IN BACKPACK
-    --==================================================
-
-    local Count =
-        GetSellPetBackpackCount()
-
-
-    Log(
-        "SELL PET BACKPACK COUNT:",
-        Count
-    )
-
-
-    -- < 300 -> execute raw BUYTRASH.
-    if Count < SPRINGTIDE_BACKPACK_LIMIT then
-
-        return ExecuteBuyTrash()
-
-    end
-
-
-    -- >= 300 -> kick.
-    Log(
-        "SELL PET COUNT >= 300 - KICK"
-    )
-
-
-    LP:Kick(
-        "Sell Pet Backpack sudah 300 atau lebih."
-    )
 
 
     return true
