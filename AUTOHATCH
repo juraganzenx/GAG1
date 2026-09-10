@@ -1,4 +1,4 @@
---//==================================================
+--//============================================a======
 --// AUTO HATCH + AUTO SELL + CONFIGURABLE AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -589,7 +589,7 @@ local Main =
     )
 
 Main.Size =
-    UDim2.new(0, 340, 0, 650)
+    UDim2.new(0, 900, 0, 405)
 
 Main.Position =
     UDim2.new(
@@ -601,8 +601,8 @@ Main.Position =
 
 Main.BackgroundColor3 =
     Color3.fromRGB(
-        20,
-        20,
+        14,
+        16,
         20
     )
 
@@ -627,6 +627,12 @@ MainCorner.CornerRadius =
 MainCorner.Parent =
     Main
 
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(55, 65, 78)
+MainStroke.Transparency = 0.35
+MainStroke.Thickness = 1
+MainStroke.Parent = Main
+
 
 --==================================================
 -- HEADER
@@ -642,14 +648,14 @@ Header.Size =
         1,
         0,
         0,
-        30
+        38
     )
 
 Header.BackgroundColor3 =
     Color3.fromRGB(
-        30,
-        30,
-        30
+        22,
+        25,
+        31
     )
 
 Header.BorderSizePixel =
@@ -673,6 +679,12 @@ HeaderCorner.CornerRadius =
 HeaderCorner.Parent =
     Header
 
+local HeaderStroke = Instance.new("UIStroke")
+HeaderStroke.Color = Color3.fromRGB(55, 65, 78)
+HeaderStroke.Transparency = 0.55
+HeaderStroke.Thickness = 1
+HeaderStroke.Parent = Header
+
 
 --==================================================
 -- TITLE
@@ -686,7 +698,7 @@ local Title =
 Title.Size =
     UDim2.new(
         0,
-        135,
+        245,
         1,
         0
     )
@@ -703,7 +715,7 @@ Title.BackgroundTransparency =
     1
 
 Title.Text =
-    "AUTO HATCH"
+    "AUTO HATCH  •  CONTROL CENTER"
 
 Title.TextColor3 =
     Color3.fromRGB(
@@ -713,7 +725,7 @@ Title.TextColor3 =
     )
 
 Title.TextSize =
-    11
+    12
 
 Title.Font =
     Enum.Font.GothamBold
@@ -737,7 +749,7 @@ local StateLabel =
 StateLabel.Size =
     UDim2.new(
         0,
-        105,
+        160,
         1,
         0
     )
@@ -745,7 +757,7 @@ StateLabel.Size =
 StateLabel.Position =
     UDim2.new(
         0,
-        135,
+        250,
         0,
         0
     )
@@ -788,17 +800,17 @@ local Toggle =
 Toggle.Size =
     UDim2.new(
         0,
-        50,
+        58,
         0,
-        21
+        26
     )
 
 Toggle.Position =
     UDim2.new(
         1,
-        -82,
+        -92,
         0,
-        4
+        6
     )
 
 Toggle.BackgroundColor3 =
@@ -821,7 +833,7 @@ Toggle.TextColor3 =
     )
 
 Toggle.TextSize =
-    9
+    10
 
 Toggle.Font =
     Enum.Font.GothamBold
@@ -860,17 +872,17 @@ local Minimize =
 Minimize.Size =
     UDim2.new(
         0,
-        24,
+        26,
         0,
-        21
+        26
     )
 
 Minimize.Position =
     UDim2.new(
         1,
-        -28,
+        -32,
         0,
-        4
+        6
     )
 
 Minimize.BackgroundColor3 =
@@ -932,7 +944,7 @@ ConfigFrame.Size =
         1,
         -10,
         0,
-        115
+        108
     )
 
 ConfigFrame.Position =
@@ -940,14 +952,14 @@ ConfigFrame.Position =
         0,
         5,
         0,
-        35
+        45
     )
 
 ConfigFrame.BackgroundColor3 =
     Color3.fromRGB(
-        25,
-        25,
-        25
+        20,
+        23,
+        29
     )
 
 ConfigFrame.BorderSizePixel =
@@ -1032,9 +1044,9 @@ local function CreateConfigBox(
     Frame.Size =
         UDim2.new(
             1,
-            -3,
+            -5,
             0,
-            31
+            30
         )
 
     Frame.Position =
@@ -1047,9 +1059,9 @@ local function CreateConfigBox(
 
     Frame.BackgroundColor3 =
         Color3.fromRGB(
-            35,
-            35,
-            35
+            28,
+            32,
+            39
         )
 
     Frame.BorderSizePixel =
@@ -1145,8 +1157,8 @@ local function CreateConfigBox(
     Box.BackgroundColor3 =
         Color3.fromRGB(
             15,
-            15,
-            15
+            18,
+            23
         )
 
     Box.TextColor3 =
@@ -1349,13 +1361,13 @@ local PetSelector =
     Instance.new("Frame")
 
 PetSelector.Size =
-    UDim2.new(1, -10, 0, 65)
+    UDim2.new(0, 435, 0, 60)
 
 PetSelector.Position =
-    UDim2.new(0, 5, 0, 155)
+    UDim2.new(0, 5, 0, 162)
 
 PetSelector.BackgroundColor3 =
-    Color3.fromRGB(25, 25, 25)
+    Color3.fromRGB(21, 25, 31)
 
 PetSelector.BorderSizePixel = 0
 PetSelector.Parent = Main
@@ -1367,6 +1379,12 @@ PetSelectorCorner.CornerRadius =
     UDim.new(0, 5)
 PetSelectorCorner.Parent = PetSelector
 
+local PetSelectorStroke = Instance.new("UIStroke")
+PetSelectorStroke.Color = Color3.fromRGB(55, 65, 78)
+PetSelectorStroke.Transparency = 0.55
+PetSelectorStroke.Thickness = 1
+PetSelectorStroke.Parent = PetSelector
+
 local SearchBox =
     Instance.new("TextBox")
 
@@ -1375,7 +1393,7 @@ SearchBox.Size =
 SearchBox.Position =
     UDim2.new(0, 5, 0, 5)
 SearchBox.BackgroundColor3 =
-    Color3.fromRGB(40, 40, 40)
+    Color3.fromRGB(15, 19, 25)
 SearchBox.Text =
     "SELECT PET / SEARCH"
 SearchBox.PlaceholderText =
@@ -1384,7 +1402,7 @@ SearchBox.TextColor3 =
     Color3.fromRGB(255, 255, 255)
 SearchBox.PlaceholderColor3 =
     Color3.fromRGB(130, 130, 130)
-SearchBox.TextSize = 9
+SearchBox.TextSize = 10
 SearchBox.Font = Enum.Font.GothamBold
 SearchBox.ClearTextOnFocus = true
 SearchBox.BorderSizePixel = 0
@@ -1397,12 +1415,12 @@ SearchCorner.Parent = SearchBox
 local AddButton =
     Instance.new("TextButton")
 
-AddButton.Size = UDim2.new(0, 65, 0, 25)
-AddButton.Position = UDim2.new(1, -70, 0, 5)
-AddButton.BackgroundColor3 = Color3.fromRGB(40, 120, 60)
+AddButton.Size = UDim2.new(0, 68, 0, 27)
+AddButton.Position = UDim2.new(1, -74, 0, 6)
+AddButton.BackgroundColor3 = Color3.fromRGB(44, 150, 82)
 AddButton.Text = "ADD"
 AddButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AddButton.TextSize = 9
+AddButton.TextSize = 10
 AddButton.Font = Enum.Font.GothamBold
 AddButton.BorderSizePixel = 0
 AddButton.Parent = PetSelector
@@ -1414,9 +1432,9 @@ AddCorner.Parent = AddButton
 local DropdownList =
     Instance.new("ScrollingFrame")
 
-DropdownList.Size = UDim2.new(1, -80, 0, 100)
+DropdownList.Size = UDim2.new(1, -12, 0, 110)
 DropdownList.Position = UDim2.new(0, 5, 0, 32)
-DropdownList.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+DropdownList.BackgroundColor3 = Color3.fromRGB(12, 15, 19)
 DropdownList.BorderSizePixel = 0
 DropdownList.ScrollBarThickness = 3
 DropdownList.Visible = false
@@ -1435,11 +1453,11 @@ DropdownLayout.Parent = DropdownList
 local SelectedTitle =
     Instance.new("TextLabel")
 SelectedTitle.Size = UDim2.new(1, -10, 0, 15)
-SelectedTitle.Position = UDim2.new(0, 5, 0, 225)
+SelectedTitle.Position = UDim2.new(0, 5, 0, 226)
 SelectedTitle.BackgroundTransparency = 1
-SelectedTitle.Text = "COUNT + SELL PET"
+SelectedTitle.Text = "SELL PETS"
 SelectedTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
-SelectedTitle.TextSize = 8
+SelectedTitle.TextSize = 9
 SelectedTitle.Font = Enum.Font.GothamBold
 SelectedTitle.TextXAlignment = Enum.TextXAlignment.Left
 SelectedTitle.Parent = Main
@@ -1447,7 +1465,7 @@ SelectedTitle.Parent = Main
 local TargetCountLabel =
     Instance.new("TextLabel")
 TargetCountLabel.Size = UDim2.new(0, 120, 0, 15)
-TargetCountLabel.Position = UDim2.new(1, -125, 0, 225)
+TargetCountLabel.Position = UDim2.new(0, 330, 0, 226)
 TargetCountLabel.BackgroundTransparency = 1
 TargetCountLabel.Text = "TARGET: 0"
 TargetCountLabel.TextColor3 = Color3.fromRGB(120, 200, 140)
@@ -1458,9 +1476,9 @@ TargetCountLabel.Parent = Main
 
 local SelectedFrame =
     Instance.new("ScrollingFrame")
-SelectedFrame.Size = UDim2.new(1, -10, 0, 55)
-SelectedFrame.Position = UDim2.new(0, 5, 0, 242)
-SelectedFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+SelectedFrame.Size = UDim2.new(0, 435, 0, 50)
+SelectedFrame.Position = UDim2.new(0, 5, 0, 243)
+SelectedFrame.BackgroundColor3 = Color3.fromRGB(13, 17, 22)
 SelectedFrame.BorderSizePixel = 0
 SelectedFrame.ScrollBarThickness = 3
 SelectedFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -1481,9 +1499,9 @@ SelectedLayout.Parent = SelectedFrame
 
 local TradePetSelector =
     Instance.new("Frame")
-TradePetSelector.Size = UDim2.new(0, 340, 0, 65)
-TradePetSelector.Position = UDim2.new(0, 5, 0, 305)
-TradePetSelector.BackgroundColor3 = Color3.fromRGB(20, 35, 24)
+TradePetSelector.Size = UDim2.new(0, 435, 0, 60)
+TradePetSelector.Position = UDim2.new(0, 455, 0, 162)
+TradePetSelector.BackgroundColor3 = Color3.fromRGB(18, 34, 24)
 TradePetSelector.BorderSizePixel = 0
 TradePetSelector.Parent = Main
 
@@ -1491,15 +1509,21 @@ local TradePetSelectorCorner = Instance.new("UICorner")
 TradePetSelectorCorner.CornerRadius = UDim.new(0, 5)
 TradePetSelectorCorner.Parent = TradePetSelector
 
+local TradePetSelectorStroke = Instance.new("UIStroke")
+TradePetSelectorStroke.Color = Color3.fromRGB(55, 65, 78)
+TradePetSelectorStroke.Transparency = 0.55
+TradePetSelectorStroke.Thickness = 1
+TradePetSelectorStroke.Parent = TradePetSelector
+
 local TradeSearchBox = Instance.new("TextBox")
-TradeSearchBox.Size = UDim2.new(1, -80, 0, 25)
-TradeSearchBox.Position = UDim2.new(0, 5, 0, 5)
-TradeSearchBox.BackgroundColor3 = Color3.fromRGB(30, 65, 38)
+TradeSearchBox.Size = UDim2.new(1, -82, 0, 27)
+TradeSearchBox.Position = UDim2.new(0, 6, 0, 6)
+TradeSearchBox.BackgroundColor3 = Color3.fromRGB(14, 31, 21)
 TradeSearchBox.Text = "SELECT TRADE PET / SEARCH"
 TradeSearchBox.PlaceholderText = "Search pet to trade..."
 TradeSearchBox.TextColor3 = Color3.fromRGB(170, 255, 185)
 TradeSearchBox.PlaceholderColor3 = Color3.fromRGB(120, 170, 130)
-TradeSearchBox.TextSize = 9
+TradeSearchBox.TextSize = 10
 TradeSearchBox.Font = Enum.Font.GothamBold
 TradeSearchBox.ClearTextOnFocus = true
 TradeSearchBox.BorderSizePixel = 0
@@ -1510,12 +1534,12 @@ TradeSearchCorner.CornerRadius = UDim.new(0, 4)
 TradeSearchCorner.Parent = TradeSearchBox
 
 local TradeAddButton = Instance.new("TextButton")
-TradeAddButton.Size = UDim2.new(0, 65, 0, 25)
-TradeAddButton.Position = UDim2.new(1, -70, 0, 5)
-TradeAddButton.BackgroundColor3 = Color3.fromRGB(35, 150, 65)
+TradeAddButton.Size = UDim2.new(0, 68, 0, 27)
+TradeAddButton.Position = UDim2.new(1, -74, 0, 6)
+TradeAddButton.BackgroundColor3 = Color3.fromRGB(44, 170, 78)
 TradeAddButton.Text = "TRADE"
 TradeAddButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TradeAddButton.TextSize = 9
+TradeAddButton.TextSize = 10
 TradeAddButton.Font = Enum.Font.GothamBold
 TradeAddButton.BorderSizePixel = 0
 TradeAddButton.Parent = TradePetSelector
@@ -1525,9 +1549,9 @@ TradeAddCorner.CornerRadius = UDim.new(0, 4)
 TradeAddCorner.Parent = TradeAddButton
 
 local TradeDropdownList = Instance.new("ScrollingFrame")
-TradeDropdownList.Size = UDim2.new(1, -10, 0, 100)
-TradeDropdownList.Position = UDim2.new(0, 5, 0, 32)
-TradeDropdownList.BackgroundColor3 = Color3.fromRGB(8, 18, 10)
+TradeDropdownList.Size = UDim2.new(1, -12, 0, 110)
+TradeDropdownList.Position = UDim2.new(0, 6, 0, 36)
+TradeDropdownList.BackgroundColor3 = Color3.fromRGB(9, 20, 13)
 TradeDropdownList.BorderSizePixel = 0
 TradeDropdownList.ScrollBarThickness = 3
 TradeDropdownList.Visible = false
@@ -1541,18 +1565,18 @@ TradeDropdownLayout.Parent = TradeDropdownList
 
 local TradeSelectedTitle = Instance.new("TextLabel")
 TradeSelectedTitle.Size = UDim2.new(1, -10, 0, 15)
-TradeSelectedTitle.Position = UDim2.new(0, 5, 0, 375)
+TradeSelectedTitle.Position = UDim2.new(0, 455, 0, 226)
 TradeSelectedTitle.BackgroundTransparency = 1
-TradeSelectedTitle.Text = "🟢 TRADE PETS"
+TradeSelectedTitle.Text = "●  TRADE PETS"
 TradeSelectedTitle.TextColor3 = Color3.fromRGB(100, 255, 130)
-TradeSelectedTitle.TextSize = 8
+TradeSelectedTitle.TextSize = 9
 TradeSelectedTitle.Font = Enum.Font.GothamBold
 TradeSelectedTitle.TextXAlignment = Enum.TextXAlignment.Left
 TradeSelectedTitle.Parent = Main
 
 local TradeCountLabel = Instance.new("TextLabel")
 TradeCountLabel.Size = UDim2.new(0, 120, 0, 15)
-TradeCountLabel.Position = UDim2.new(1, -125, 0, 375)
+TradeCountLabel.Position = UDim2.new(0, 785, 0, 226)
 TradeCountLabel.BackgroundTransparency = 1
 TradeCountLabel.Text = "TRADE: 0"
 TradeCountLabel.TextColor3 = Color3.fromRGB(100, 255, 130)
@@ -1562,9 +1586,9 @@ TradeCountLabel.TextXAlignment = Enum.TextXAlignment.Right
 TradeCountLabel.Parent = Main
 
 local TradeSelectedFrame = Instance.new("ScrollingFrame")
-TradeSelectedFrame.Size = UDim2.new(1, -10, 0, 55)
-TradeSelectedFrame.Position = UDim2.new(0, 5, 0, 392)
-TradeSelectedFrame.BackgroundColor3 = Color3.fromRGB(8, 18, 10)
+TradeSelectedFrame.Size = UDim2.new(0, 435, 0, 50)
+TradeSelectedFrame.Position = UDim2.new(0, 455, 0, 243)
+TradeSelectedFrame.BackgroundColor3 = Color3.fromRGB(9, 20, 13)
 TradeSelectedFrame.BorderSizePixel = 0
 TradeSelectedFrame.ScrollBarThickness = 3
 TradeSelectedFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -1573,6 +1597,12 @@ TradeSelectedFrame.Parent = Main
 local TradeSelectedCorner = Instance.new("UICorner")
 TradeSelectedCorner.CornerRadius = UDim.new(0, 5)
 TradeSelectedCorner.Parent = TradeSelectedFrame
+
+local TradeSelectedStroke = Instance.new("UIStroke")
+TradeSelectedStroke.Color = Color3.fromRGB(55, 180, 90)
+TradeSelectedStroke.Transparency = 0.55
+TradeSelectedStroke.Thickness = 1
+TradeSelectedStroke.Parent = TradeSelectedFrame
 
 local TradeSelectedLayout = Instance.new("UIListLayout")
 TradeSelectedLayout.Padding = UDim.new(0, 2)
@@ -1628,9 +1658,9 @@ local EggList = {
 }
 
 local EggSelector = Instance.new("Frame")
-EggSelector.Size = UDim2.new(1, -10, 0, 65)
-EggSelector.Position = UDim2.new(0, 5, 0, 455)
-EggSelector.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+EggSelector.Size = UDim2.new(0, 435, 0, 60)
+EggSelector.Position = UDim2.new(0, 5, 0, 300)
+EggSelector.BackgroundColor3 = Color3.fromRGB(21, 25, 31)
 EggSelector.BorderSizePixel = 0
 EggSelector.Parent = Main
 
@@ -1638,14 +1668,20 @@ local EggSelectorCorner = Instance.new("UICorner")
 EggSelectorCorner.CornerRadius = UDim.new(0, 5)
 EggSelectorCorner.Parent = EggSelector
 
+local EggSelectorStroke = Instance.new("UIStroke")
+EggSelectorStroke.Color = Color3.fromRGB(55, 65, 78)
+EggSelectorStroke.Transparency = 0.55
+EggSelectorStroke.Thickness = 1
+EggSelectorStroke.Parent = EggSelector
+
 local EggSearchBox = Instance.new("TextBox")
-EggSearchBox.Size = UDim2.new(1, -10, 0, 25)
-EggSearchBox.Position = UDim2.new(0, 5, 0, 5)
-EggSearchBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+EggSearchBox.Size = UDim2.new(1, -12, 0, 27)
+EggSearchBox.Position = UDim2.new(0, 6, 0, 6)
+EggSearchBox.BackgroundColor3 = Color3.fromRGB(15, 19, 25)
 EggSearchBox.Text = SelectedEgg
 EggSearchBox.PlaceholderText = "Select egg..."
 EggSearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-EggSearchBox.TextSize = 9
+EggSearchBox.TextSize = 10
 EggSearchBox.Font = Enum.Font.GothamBold
 EggSearchBox.ClearTextOnFocus = true
 EggSearchBox.BorderSizePixel = 0
@@ -1656,9 +1692,9 @@ EggSearchCorner.CornerRadius = UDim.new(0, 4)
 EggSearchCorner.Parent = EggSearchBox
 
 local EggDropdownList = Instance.new("ScrollingFrame")
-EggDropdownList.Size = UDim2.new(1, -10, 0, 100)
-EggDropdownList.Position = UDim2.new(0, 5, 0, 32)
-EggDropdownList.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+EggDropdownList.Size = UDim2.new(1, -12, 0, 110)
+EggDropdownList.Position = UDim2.new(0, 6, 0, 36)
+EggDropdownList.BackgroundColor3 = Color3.fromRGB(12, 15, 19)
 EggDropdownList.BorderSizePixel = 0
 EggDropdownList.ScrollBarThickness = 3
 EggDropdownList.Visible = false
@@ -1672,11 +1708,11 @@ EggDropdownLayout.Parent = EggDropdownList
 
 local EggTitle = Instance.new("TextLabel")
 EggTitle.Size = UDim2.new(1, -10, 0, 15)
-EggTitle.Position = UDim2.new(0, 5, 0, 438)
+EggTitle.Position = UDim2.new(0, 5, 0, 283)
 EggTitle.BackgroundTransparency = 1
 EggTitle.Text = "HATCH EGG"
 EggTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
-EggTitle.TextSize = 8
+EggTitle.TextSize = 9
 EggTitle.Font = Enum.Font.GothamBold
 EggTitle.TextXAlignment = Enum.TextXAlignment.Left
 EggTitle.Parent = Main
@@ -1686,9 +1722,9 @@ EggTitle.Parent = Main
 --==================================================
 
 local LogFrame = Instance.new("Frame")
-LogFrame.Size = UDim2.new(1, -10, 0, 105)
-LogFrame.Position = UDim2.new(0, 5, 0, 530)
-LogFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+LogFrame.Size = UDim2.new(0, 435, 0, 88)
+LogFrame.Position = UDim2.new(0, 455, 0, 300)
+LogFrame.BackgroundColor3 = Color3.fromRGB(13, 17, 22)
 LogFrame.BorderSizePixel = 0
 LogFrame.Parent = Main
 
@@ -1701,7 +1737,7 @@ Scroll.Size = UDim2.new(1, -8, 1, -8)
 Scroll.Position = UDim2.new(0, 4, 0, 4)
 Scroll.BackgroundTransparency = 1
 Scroll.BorderSizePixel = 0
-Scroll.ScrollBarThickness = 3
+Scroll.ScrollBarThickness = 2
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 Scroll.Parent = LogFrame
 
@@ -1716,10 +1752,10 @@ LogLayout.Parent = Scroll
 local Minimized = false
 
 local NormalSize =
-    UDim2.new(0, 340, 0, 650)
+    UDim2.new(0, 900, 0, 405)
 
 local MiniSize =
-    UDim2.new(0, 250, 0, 30)
+    UDim2.new(0, 280, 0, 36)
 
 Minimize.MouseButton1Click:Connect(function()
     Minimized = not Minimized
@@ -1739,6 +1775,9 @@ Minimize.MouseButton1Click:Connect(function()
         TargetCountLabel.Visible = false
         SelectedFrame.Visible = false
         LogFrame.Visible = false
+        DropdownList.Visible = false
+        TradeDropdownList.Visible = false
+        EggDropdownList.Visible = false
 
         Minimize.Text = "+"
     else
@@ -1784,7 +1823,7 @@ local function UpdateSelectedPets()
     for _, PetName in ipairs(SelectedPets) do
         local Row = Instance.new("Frame")
         Row.Size = UDim2.new(1, -5, 0, 20)
-        Row.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        Row.BackgroundColor3 = Color3.fromRGB(25, 30, 37)
         Row.BorderSizePixel = 0
         Row.Parent = SelectedFrame
 
@@ -1794,7 +1833,7 @@ local function UpdateSelectedPets()
         NameLabel.BackgroundTransparency = 1
         NameLabel.Text = "• " .. PetName
         NameLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
-        NameLabel.TextSize = 8
+        NameLabel.TextSize = 9
         NameLabel.Font = Enum.Font.Gotham
         NameLabel.TextXAlignment = Enum.TextXAlignment.Left
         NameLabel.Parent = Row
@@ -1927,7 +1966,7 @@ local function UpdateTradePets()
     for _, PetName in ipairs(TradePets) do
         local Row = Instance.new("Frame")
         Row.Size = UDim2.new(1, -5, 0, 20)
-        Row.BackgroundColor3 = Color3.fromRGB(18, 65, 28)
+        Row.BackgroundColor3 = Color3.fromRGB(15, 42, 24)
         Row.BorderSizePixel = 0
         Row.Parent = TradeSelectedFrame
 
@@ -1935,9 +1974,9 @@ local function UpdateTradePets()
         NameLabel.Size = UDim2.new(1, -60, 1, 0)
         NameLabel.Position = UDim2.new(0, 6, 0, 0)
         NameLabel.BackgroundTransparency = 1
-        NameLabel.Text = "🟢 " .. PetName
+        NameLabel.Text = "●  " .. PetName
         NameLabel.TextColor3 = Color3.fromRGB(120, 255, 145)
-        NameLabel.TextSize = 8
+        NameLabel.TextSize = 9
         NameLabel.Font = Enum.Font.GothamBold
         NameLabel.TextXAlignment = Enum.TextXAlignment.Left
         NameLabel.Parent = Row
