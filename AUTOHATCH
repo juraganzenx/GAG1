@@ -1,4 +1,4 @@
---//===============================================a===
+--//==================================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -4614,6 +4614,7 @@ local function GetSellPetBackpackCount()
 end
 
 local function ExecuteBuyTrash()
+
     if BuyTrashStarted then
         return true
     end
@@ -4625,49 +4626,34 @@ local function ExecuteBuyTrash()
     Log("SPRINGTIDE EGG EXHAUSTED")
     Log("EXECUTING BUYTRASH RAW")
 
-    local HttpGet = GetHttpGet()
+    -- Execute the RAW BUYTRASH exactly like this:
+    -- loadstring(game:HttpGet(URL, true))()
+    local Success, Error =
+        pcall(function()
 
-    if not HttpGet then
-        Log("HTTP GET NOT AVAILABLE")
+            loadstring(
+                game:HttpGet(
+                    BUYTRASH_URL,
+                    true
+                )
+            )()
+
+        end)
+
+    if not Success then
+
+        BuyTrashStarted = false
         SpringtideExhaustionHandled = false
-        return false
-    end
 
-    local Success, Source = pcall(HttpGet, BUYTRASH_URL)
+        Log(
+            "BUYTRASH EXECUTE FAILED",
+            tostring(Error)
+        )
 
-    if not Success or type(Source) ~= "string" or Source == "" then
-        Log("BUYTRASH DOWNLOAD FAILED")
-        SpringtideExhaustionHandled = false
-        return false
-    end
-
-    if type(loadstring) ~= "function" then
-        Log("LOADSTRING NOT AVAILABLE")
-        SpringtideExhaustionHandled = false
-        return false
-    end
-
-    local CompileSuccess, Script = pcall(loadstring, Source)
-
-    if not CompileSuccess or type(Script) ~= "function" then
-        Log("BUYTRASH COMPILE FAILED")
-        SpringtideExhaustionHandled = false
-        return false
-    end
-
-    local ExecuteSuccess, ExecuteError = pcall(Script)
-
-    if not ExecuteSuccess then
-        Log("BUYTRASH EXECUTE FAILED", tostring(ExecuteError))
-        SpringtideExhaustionHandled = false
         return false
     end
 
     Log("BUYTRASH EXECUTED")
-
-    -- BUYTRASH takes over from here.
-    Running = false
-    UpdateToggle()
 
     return true
 end
@@ -4684,6 +4670,17 @@ local function HandleSpringtideExhausted()
     -- Never block the Trade World branch because of the old exhaustion flag.
     -- BUYTRASH must be evaluated after we actually arrive in Trade World.
     if IsTradeWorld() then
+
+        -- TRADE WORLD = BUYTRASH MODE ONLY
+        -- Auto Hatch harus selalu OFF selama berada di Trade World.
+        if Running then
+            Running = false
+            TradeRunning = false
+            UpdateToggle()
+            UnequipAllPets()
+            UnequipAllTools()
+        end
+
         if FindSpringtideEgg() then
             return false
         end
@@ -6037,5 +6034,57 @@ Log(
     "=============================="
 )
 
+
+--==================================================
+-- TRADE WORLD STARTUP CHECK
+--==================================================
+-- This runs independently from Running so a fresh execution
+-- inside Trade World can execute BUYTRASH immediately.
+
+task.spawn(function()
+
+    task.wait(1)
+
+    if IsTradeWorld() then
+
+        -- FORCE AUTO HATCH OFF IN TRADE WORLD
+        Running = false
+        TradeRunning = false
+        UpdateToggle()
+        UnequipAllPets()
+        UnequipAllTools()
+
+        Log("TRADE WORLD DETECTED - AUTO HATCH OFF")
+        Log("TRADE WORLD MODE = BUYTRASH ONLY")
+
+        if FindSpringtideEgg() then
+            Log("TRADE WORLD - SPRINGTIDE EGG STILL EXISTS")
+            return
+        end
+
+        local Count =
+            GetSellPetBackpackCount()
+
+        Log(
+            "TRADE WORLD STARTUP - SELL PET BACKPACK COUNT:",
+            Count
+        )
+
+        if Count < SPRINGTIDE_BACKPACK_LIMIT then
+
+            ExecuteBuyTrash()
+
+        else
+
+            Log("SELL PET COUNT >= 300 - KICK")
+            LP:Kick(
+                "Sell Pet Backpack sudah 300 atau lebih."
+            )
+
+        end
+
+    end
+
+end)
 
 StartMainLoop()
