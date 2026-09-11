@@ -1,151 +1,479 @@
 --========================================================
 -- WORLD ROUTER + SIMPLE STATUS GUI
 --========================================================
+-- TRAVEL TO TRADE WORLD:
+--   GameEvents.TradeWorld.TravelToTradeWorld:FireServer()
+--
+-- MAIN WORLD:
+--   Springtide Egg > 0 -> AUTOHATCH
+--   Springtide Egg = 0 -> TRAVEL TO TRADE WORLD
+--
+-- TRADE WORLD:
+--   Springbee + Jerboa + Nyala < 300 -> BUYTRASH
+--   Total >= 300 -> KICK
+--
+-- PERYTON / EGG CHECK:
+--   Setiap 10 detik
+--========================================================
 
-local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
-local CoreGui = game:GetService("CoreGui")
 
-local LocalPlayer = Players.LocalPlayer
+--========================================================
+-- SERVICES
+--========================================================
+
+local Players =
+    game:GetService("Players")
+
+local ReplicatedStorage =
+    game:GetService("ReplicatedStorage")
+
+local CoreGui =
+    game:GetService("CoreGui")
+
+
+local LocalPlayer =
+    Players.LocalPlayer
+
 
 --========================================================
 -- PLACE ID
 --========================================================
 
-local MAIN_WORLD  = 126884695634066
-local TRADE_WORLD = 129954712878723
+local MAIN_WORLD =
+    126884695634066
+
+local TRADE_WORLD =
+    129954712878723
+
 
 --========================================================
 -- CONFIG
 --========================================================
 
-local CHECK_INTERVAL = 10
+local CHECK_INTERVAL =
+    10
+
 
 local AUTOHATCH_URL =
-    "https://raw.githubusercontent.com/juraganzenx/GAG1/refs/heads/main/AUTOHATCH"
+    "https://raw.githubusercontent.com/"
+    .. "juraganzenx/GAG1/refs/heads/main/AUTOHATCH"
+
 
 local BUYTRASH_URL =
-    "https://raw.githubusercontent.com/juraganzenx/GAG1/refs/heads/main/BUYTRASH"
+    "https://raw.githubusercontent.com/"
+    .. "juraganzenx/GAG1/refs/heads/main/BUYTRASH"
+
 
 --========================================================
 -- STATE
 --========================================================
 
-local AutoHatchStarted = false
-local BuyTrashStarted = false
-local Traveling = false
+local AutoHatchStarted =
+    false
+
+local BuyTrashStarted =
+    false
+
+local Traveling =
+    false
+
+
+--========================================================
+-- REMOTES
+--========================================================
+
+local GameEvents =
+    ReplicatedStorage:WaitForChild(
+        "GameEvents"
+    )
+
+
+local TradeWorldFolder =
+    GameEvents:WaitForChild(
+        "TradeWorld"
+    )
+
+
+local TravelToTradeWorld =
+    TradeWorldFolder:WaitForChild(
+        "TravelToTradeWorld"
+    )
+
 
 --========================================================
 -- GUI
 --========================================================
 
 pcall(function()
-    local OldGui = CoreGui:FindFirstChild("WorldRouterStatus")
+
+    local OldGui =
+        CoreGui:FindFirstChild(
+            "WorldRouterStatus"
+        )
 
     if OldGui then
         OldGui:Destroy()
     end
+
 end)
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "WorldRouterStatus"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = CoreGui
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 250, 0, 125)
-MainFrame.Position = UDim2.new(1, -260, 0, 20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
+local ScreenGui =
+    Instance.new("ScreenGui")
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 8)
-Corner.Parent = MainFrame
+ScreenGui.Name =
+    "WorldRouterStatus"
 
-local Stroke = Instance.new("UIStroke")
-Stroke.Thickness = 1
-Stroke.Color = Color3.fromRGB(70, 70, 80)
-Stroke.Parent = MainFrame
+ScreenGui.ResetOnSpawn =
+    false
 
-local Title = Instance.new("TextLabel")
-Title.Name = "Title"
-Title.Size = UDim2.new(1, -20, 0, 25)
-Title.Position = UDim2.new(0, 10, 0, 5)
-Title.BackgroundTransparency = 1
-Title.Text = "WORLD ROUTER"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 15
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = MainFrame
+ScreenGui.ZIndexBehavior =
+    Enum.ZIndexBehavior.Sibling
 
-local WorldLabel = Instance.new("TextLabel")
-WorldLabel.Name = "World"
-WorldLabel.Size = UDim2.new(1, -20, 0, 20)
-WorldLabel.Position = UDim2.new(0, 10, 0, 32)
-WorldLabel.BackgroundTransparency = 1
-WorldLabel.Text = "World: Loading..."
-WorldLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-WorldLabel.TextSize = 13
-WorldLabel.Font = Enum.Font.Gotham
-WorldLabel.TextXAlignment = Enum.TextXAlignment.Left
-WorldLabel.Parent = MainFrame
+ScreenGui.Parent =
+    CoreGui
 
-local CountLabel = Instance.new("TextLabel")
-CountLabel.Name = "Count"
-CountLabel.Size = UDim2.new(1, -20, 0, 20)
-CountLabel.Position = UDim2.new(0, 10, 0, 54)
-CountLabel.BackgroundTransparency = 1
-CountLabel.Text = "Count: --"
-CountLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-CountLabel.TextSize = 13
-CountLabel.Font = Enum.Font.Gotham
-CountLabel.TextXAlignment = Enum.TextXAlignment.Left
-CountLabel.Parent = MainFrame
 
-local StateLabel = Instance.new("TextLabel")
-StateLabel.Name = "State"
-StateLabel.Size = UDim2.new(1, -20, 0, 20)
-StateLabel.Position = UDim2.new(0, 10, 0, 77)
-StateLabel.BackgroundTransparency = 1
-StateLabel.Text = "State: Starting..."
-StateLabel.TextColor3 = Color3.fromRGB(100, 220, 120)
-StateLabel.TextSize = 13
-StateLabel.Font = Enum.Font.GothamBold
-StateLabel.TextXAlignment = Enum.TextXAlignment.Left
-StateLabel.Parent = MainFrame
+local MainFrame =
+    Instance.new("Frame")
 
-local CheckLabel = Instance.new("TextLabel")
-CheckLabel.Name = "Check"
-CheckLabel.Size = UDim2.new(1, -20, 0, 18)
-CheckLabel.Position = UDim2.new(0, 10, 0, 99)
-CheckLabel.BackgroundTransparency = 1
-CheckLabel.Text = "Next check: --"
-CheckLabel.TextColor3 = Color3.fromRGB(130, 130, 140)
-CheckLabel.TextSize = 11
-CheckLabel.Font = Enum.Font.Gotham
-CheckLabel.TextXAlignment = Enum.TextXAlignment.Left
-CheckLabel.Parent = MainFrame
+MainFrame.Name =
+    "MainFrame"
+
+MainFrame.Size =
+    UDim2.new(
+        0,
+        250,
+        0,
+        125
+    )
+
+MainFrame.Position =
+    UDim2.new(
+        1,
+        -260,
+        0,
+        20
+    )
+
+MainFrame.BackgroundColor3 =
+    Color3.fromRGB(
+        20,
+        20,
+        25
+    )
+
+MainFrame.BorderSizePixel =
+    0
+
+MainFrame.Parent =
+    ScreenGui
+
+
+local Corner =
+    Instance.new("UICorner")
+
+Corner.CornerRadius =
+    UDim.new(
+        0,
+        8
+    )
+
+Corner.Parent =
+    MainFrame
+
+
+local Stroke =
+    Instance.new("UIStroke")
+
+Stroke.Thickness =
+    1
+
+Stroke.Color =
+    Color3.fromRGB(
+        70,
+        70,
+        80
+    )
+
+Stroke.Parent =
+    MainFrame
+
+
+local Title =
+    Instance.new("TextLabel")
+
+Title.Name =
+    "Title"
+
+Title.Size =
+    UDim2.new(
+        1,
+        -20,
+        0,
+        25
+    )
+
+Title.Position =
+    UDim2.new(
+        0,
+        10,
+        0,
+        5
+    )
+
+Title.BackgroundTransparency =
+    1
+
+Title.Text =
+    "WORLD ROUTER"
+
+Title.TextColor3 =
+    Color3.fromRGB(
+        255,
+        255,
+        255
+    )
+
+Title.TextSize =
+    15
+
+Title.Font =
+    Enum.Font.GothamBold
+
+Title.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+Title.Parent =
+    MainFrame
+
+
+local WorldLabel =
+    Instance.new("TextLabel")
+
+WorldLabel.Name =
+    "World"
+
+WorldLabel.Size =
+    UDim2.new(
+        1,
+        -20,
+        0,
+        20
+    )
+
+WorldLabel.Position =
+    UDim2.new(
+        0,
+        10,
+        0,
+        32
+    )
+
+WorldLabel.BackgroundTransparency =
+    1
+
+WorldLabel.Text =
+    "World: Loading..."
+
+WorldLabel.TextColor3 =
+    Color3.fromRGB(
+        180,
+        180,
+        180
+    )
+
+WorldLabel.TextSize =
+    13
+
+WorldLabel.Font =
+    Enum.Font.Gotham
+
+WorldLabel.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+WorldLabel.Parent =
+    MainFrame
+
+
+local CountLabel =
+    Instance.new("TextLabel")
+
+CountLabel.Name =
+    "Count"
+
+CountLabel.Size =
+    UDim2.new(
+        1,
+        -20,
+        0,
+        20
+    )
+
+CountLabel.Position =
+    UDim2.new(
+        0,
+        10,
+        0,
+        54
+    )
+
+CountLabel.BackgroundTransparency =
+    1
+
+CountLabel.Text =
+    "Count: --"
+
+CountLabel.TextColor3 =
+    Color3.fromRGB(
+        220,
+        220,
+        220
+    )
+
+CountLabel.TextSize =
+    13
+
+CountLabel.Font =
+    Enum.Font.Gotham
+
+CountLabel.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+CountLabel.Parent =
+    MainFrame
+
+
+local StateLabel =
+    Instance.new("TextLabel")
+
+StateLabel.Name =
+    "State"
+
+StateLabel.Size =
+    UDim2.new(
+        1,
+        -20,
+        0,
+        20
+    )
+
+StateLabel.Position =
+    UDim2.new(
+        0,
+        10,
+        0,
+        77
+    )
+
+StateLabel.BackgroundTransparency =
+    1
+
+StateLabel.Text =
+    "State: Starting..."
+
+StateLabel.TextColor3 =
+    Color3.fromRGB(
+        100,
+        220,
+        120
+    )
+
+StateLabel.TextSize =
+    13
+
+StateLabel.Font =
+    Enum.Font.GothamBold
+
+StateLabel.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+StateLabel.Parent =
+    MainFrame
+
+
+local CheckLabel =
+    Instance.new("TextLabel")
+
+CheckLabel.Name =
+    "Check"
+
+CheckLabel.Size =
+    UDim2.new(
+        1,
+        -20,
+        0,
+        18
+    )
+
+CheckLabel.Position =
+    UDim2.new(
+        0,
+        10,
+        0,
+        99
+    )
+
+CheckLabel.BackgroundTransparency =
+    1
+
+CheckLabel.Text =
+    "Next check: --"
+
+CheckLabel.TextColor3 =
+    Color3.fromRGB(
+        130,
+        130,
+        140
+    )
+
+CheckLabel.TextSize =
+    11
+
+CheckLabel.Font =
+    Enum.Font.Gotham
+
+CheckLabel.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+CheckLabel.Parent =
+    MainFrame
+
 
 --========================================================
 -- GUI UPDATE
 --========================================================
 
-local function SetStatus(World, Count, State)
+local function SetStatus(
+    World,
+    Count,
+    State
+)
 
-    WorldLabel.Text = "World: " .. tostring(World)
-    CountLabel.Text = "Count: " .. tostring(Count)
-    StateLabel.Text = "State: " .. tostring(State)
+    WorldLabel.Text =
+        "World: "
+        .. tostring(World)
+
+    CountLabel.Text =
+        "Count: "
+        .. tostring(Count)
+
+    StateLabel.Text =
+        "State: "
+        .. tostring(State)
 
 end
 
 
-local function SetNextCheck(Time)
+local function SetNextCheck(
+    Time
+)
 
-    CheckLabel.Text = "Next check: " .. tostring(Time) .. "s"
+    CheckLabel.Text =
+        "Next check: "
+        .. tostring(Time)
+        .. "s"
+
 end
 
 
@@ -153,30 +481,51 @@ end
 -- EXECUTE REMOTE SCRIPT
 --========================================================
 
-local function ExecuteScript(URL)
+local function ExecuteScript(
+    URL
+)
 
-    local Success, Result = pcall(function()
+    local Success, Result =
+        pcall(function()
 
-        local Source = game:HttpGet(URL, true)
+            local Source =
+                game:HttpGet(
+                    URL,
+                    true
+                )
 
-        local Func = loadstring(Source)
+            local Func =
+                loadstring(
+                    Source
+                )
 
-        if not Func then
-            error("loadstring failed")
-        end
+            if not Func then
 
-        return Func()
+                error(
+                    "loadstring failed"
+                )
 
-    end)
+            end
+
+            return Func()
+
+        end)
+
 
     if not Success then
 
-        warn("EXECUTE ERROR:", Result)
+        warn(
+            "EXECUTE ERROR:",
+            Result
+        )
 
         return false
+
     end
 
+
     return true
+
 end
 
 
@@ -186,42 +535,68 @@ end
 
 local function CountSpringtideEgg()
 
-    local Count = 0
+    local Count =
+        0
 
-    -- Backpack
-    local Backpack = LocalPlayer:FindFirstChild("Backpack")
+
+    --====================================================
+    -- BACKPACK
+    --====================================================
+
+    local Backpack =
+        LocalPlayer:FindFirstChild(
+            "Backpack"
+        )
+
 
     if Backpack then
 
-        for _, Tool in ipairs(Backpack:GetChildren()) do
+        for _, Tool in ipairs(
+            Backpack:GetChildren()
+        ) do
 
             if Tool:IsA("Tool")
-                and Tool:GetAttribute("h") == "Springtide Egg" then
+            and Tool:GetAttribute("h")
+                == "Springtide Egg" then
 
                 Count += 1
+
             end
 
         end
+
     end
 
 
-    -- Character
-    local Character = LocalPlayer.Character
+    --====================================================
+    -- CHARACTER
+    --====================================================
+
+    local Character =
+        LocalPlayer.Character
+
 
     if Character then
 
-        for _, Tool in ipairs(Character:GetChildren()) do
+        for _, Tool in ipairs(
+            Character:GetChildren()
+        ) do
 
             if Tool:IsA("Tool")
-                and Tool:GetAttribute("h") == "Springtide Egg" then
+            and Tool:GetAttribute("h")
+                == "Springtide Egg" then
 
                 Count += 1
+
             end
 
         end
+
     end
 
+
     return Count
+
 end
 
 
@@ -230,9 +605,13 @@ end
 --========================================================
 
 local TARGET_PETS = {
+
     Springbee = true,
+
     Jerboa = true,
+
     Nyala = true,
+
 }
 
 
@@ -240,15 +619,20 @@ local TARGET_PETS = {
 -- DETECT TARGET PET
 --========================================================
 
-local function GetPetType(Tool)
+local function GetPetType(
+    Tool
+)
 
     if not Tool:IsA("Tool") then
         return nil
     end
 
-    for PetName in pairs(TARGET_PETS) do
 
-        -- Contoh:
+    for PetName in pairs(
+        TARGET_PETS
+    ) do
+
+        -- Example:
         -- Jerboa [1.83 KG] [Age 1]
         -- Springbee [2.20 KG] [Age 3]
         -- Nyala [1.50 KG] [Age 1]
@@ -259,11 +643,14 @@ local function GetPetType(Tool)
         ) then
 
             return PetName
+
         end
 
     end
 
+
     return nil
+
 end
 
 
@@ -274,42 +661,77 @@ end
 local function CountTargetPets()
 
     local Counts = {
+
         Springbee = 0,
+
         Jerboa = 0,
+
         Nyala = 0,
+
     }
 
-    -- Backpack
-    local Backpack = LocalPlayer:FindFirstChild("Backpack")
+
+    --====================================================
+    -- BACKPACK
+    --====================================================
+
+    local Backpack =
+        LocalPlayer:FindFirstChild(
+            "Backpack"
+        )
+
 
     if Backpack then
 
-        for _, Tool in ipairs(Backpack:GetChildren()) do
+        for _, Tool in ipairs(
+            Backpack:GetChildren()
+        ) do
 
-            local PetType = GetPetType(Tool)
+            local PetType =
+                GetPetType(
+                    Tool
+                )
+
 
             if PetType then
+
                 Counts[PetType] += 1
+
             end
 
         end
+
     end
 
 
-    -- Character
-    local Character = LocalPlayer.Character
+    --====================================================
+    -- CHARACTER
+    --====================================================
+
+    local Character =
+        LocalPlayer.Character
+
 
     if Character then
 
-        for _, Tool in ipairs(Character:GetChildren()) do
+        for _, Tool in ipairs(
+            Character:GetChildren()
+        ) do
 
-            local PetType = GetPetType(Tool)
+            local PetType =
+                GetPetType(
+                    Tool
+                )
+
 
             if PetType then
+
                 Counts[PetType] += 1
+
             end
 
         end
+
     end
 
 
@@ -318,21 +740,49 @@ local function CountTargetPets()
         + Counts.Jerboa
         + Counts.Nyala
 
+
     return Counts
+
 end
 
 
 --========================================================
 -- TRAVEL TO TRADE WORLD
 --========================================================
+--
+-- BARU:
+--
+-- GameEvents
+--   └── TradeWorld
+--        └── TravelToTradeWorld
+--
+-- Tidak lagi memakai:
+-- TeleportService:Teleport()
+--
+--========================================================
 
 local function TravelToTradeWorld()
 
     if Traveling then
+
         return
+
     end
 
-    Traveling = true
+
+    if game.PlaceId == TRADE_WORLD then
+
+        Traveling =
+            false
+
+        return
+
+    end
+
+
+    Traveling =
+        true
+
 
     SetStatus(
         "MAIN WORLD",
@@ -340,15 +790,95 @@ local function TravelToTradeWorld()
         "TRAVELING TO TRADE"
     )
 
-    warn("================================")
-    warn("SPRINGTIDE EGG = 0")
-    warn("TRAVEL TO TRADE WORLD")
-    warn("================================")
 
-    TeleportService:Teleport(
-        TRADE_WORLD,
-        LocalPlayer
+    warn(
+        "================================"
     )
+
+    warn(
+        "SPRINGTIDE EGG = 0"
+    )
+
+    warn(
+        "TRAVEL TO TRADE WORLD"
+    )
+
+    warn(
+        "METHOD: TravelToTradeWorld:FireServer()"
+    )
+
+    warn(
+        "================================"
+    )
+
+
+    local Success, ErrorMessage =
+        pcall(function()
+
+            TravelToTradeWorld:
+                FireServer()
+
+        end)
+
+
+    if not Success then
+
+        warn(
+            "[TRADE TRAVEL ERROR]",
+            tostring(
+                ErrorMessage
+            )
+        )
+
+
+        Traveling =
+            false
+
+
+        SetStatus(
+            "MAIN WORLD",
+            CountSpringtideEgg(),
+            "TRAVEL FAILED"
+        )
+
+
+        return
+
+    end
+
+
+    warn(
+        "[TRADE] Travel request sent."
+    )
+
+
+    --====================================================
+    -- Beri waktu untuk server memproses
+    --====================================================
+
+    task.delay(
+        5,
+        function()
+
+            if game.PlaceId
+                ~= TRADE_WORLD then
+
+                Traveling =
+                    false
+
+                warn(
+                    "[TRADE] Still in Main World."
+                )
+
+                warn(
+                    "[TRADE] Travel request may have failed."
+                )
+
+            end
+
+        end
+    )
+
 end
 
 
@@ -358,7 +888,9 @@ end
 
 local function CheckMainWorld()
 
-    local EggCount = CountSpringtideEgg()
+    local EggCount =
+        CountSpringtideEgg()
+
 
     warn(
         "[MAIN WORLD] Springtide Egg:",
@@ -378,9 +910,12 @@ local function CheckMainWorld()
             "TRAVELING TO TRADE"
         )
 
+
         TravelToTradeWorld()
 
+
         return
+
     end
 
 
@@ -397,10 +932,18 @@ local function CheckMainWorld()
 
     if not AutoHatchStarted then
 
-        AutoHatchStarted = true
+        AutoHatchStarted =
+            true
 
-        warn("SPRINGTIDE EGG > 0")
-        warn("START AUTOHATCH")
+
+        warn(
+            "SPRINGTIDE EGG > 0"
+        )
+
+        warn(
+            "START AUTOHATCH"
+        )
+
 
         task.spawn(function()
 
@@ -411,6 +954,7 @@ local function CheckMainWorld()
         end)
 
     end
+
 end
 
 
@@ -420,17 +964,45 @@ end
 
 local function CheckTradeWorld()
 
-    local Counts = CountTargetPets()
+    local Counts =
+        CountTargetPets()
 
-    local Total = Counts.Total
 
-    warn("================================")
-    warn("TRADE WORLD")
-    warn("Springbee:", Counts.Springbee)
-    warn("Jerboa:", Counts.Jerboa)
-    warn("Nyala:", Counts.Nyala)
-    warn("TOTAL:", Total)
-    warn("================================")
+    local Total =
+        Counts.Total
+
+
+    warn(
+        "================================"
+    )
+
+    warn(
+        "TRADE WORLD"
+    )
+
+    warn(
+        "Springbee:",
+        Counts.Springbee
+    )
+
+    warn(
+        "Jerboa:",
+        Counts.Jerboa
+    )
+
+    warn(
+        "Nyala:",
+        Counts.Nyala
+    )
+
+    warn(
+        "TOTAL:",
+        Total
+    )
+
+    warn(
+        "================================"
+    )
 
 
     --====================================================
@@ -445,16 +1017,26 @@ local function CheckTradeWorld()
             "KICK - 300 REACHED"
         )
 
-        warn("TARGET PET TOTAL >= 300")
-        warn("KICK PLAYER")
+
+        warn(
+            "TARGET PET TOTAL >= 300"
+        )
+
+        warn(
+            "KICK PLAYER"
+        )
+
 
         task.wait(1)
+
 
         LocalPlayer:Kick(
             "Springbee + Jerboa + Nyala reached 300."
         )
 
+
         return
+
     end
 
 
@@ -471,10 +1053,18 @@ local function CheckTradeWorld()
 
     if not BuyTrashStarted then
 
-        BuyTrashStarted = true
+        BuyTrashStarted =
+            true
 
-        warn("TARGET PET TOTAL < 300")
-        warn("START BUYTRASH")
+
+        warn(
+            "TARGET PET TOTAL < 300"
+        )
+
+        warn(
+            "START BUYTRASH"
+        )
+
 
         task.spawn(function()
 
@@ -485,6 +1075,7 @@ local function CheckTradeWorld()
         end)
 
     end
+
 end
 
 
@@ -503,9 +1094,11 @@ if game.PlaceId == MAIN_WORLD then
 
     CheckMainWorld()
 
+
 elseif game.PlaceId == TRADE_WORLD then
 
     CheckTradeWorld()
+
 
 else
 
@@ -514,6 +1107,7 @@ else
         "--",
         "UNKNOWN PLACE"
     )
+
 
     warn(
         "[WORLD ROUTER] Unknown PlaceId:",
@@ -527,9 +1121,12 @@ end
 -- 10 SECOND LOOP
 --========================================================
 
-while task.wait(CHECK_INTERVAL) do
+while task.wait(
+    CHECK_INTERVAL
+) do
 
-    local PlaceId = game.PlaceId
+    local PlaceId =
+        game.PlaceId
 
 
     --====================================================
@@ -537,6 +1134,11 @@ while task.wait(CHECK_INTERVAL) do
     --====================================================
 
     if PlaceId == MAIN_WORLD then
+
+        SetNextCheck(
+            CHECK_INTERVAL
+        )
+
 
         CheckMainWorld()
 
@@ -546,6 +1148,11 @@ while task.wait(CHECK_INTERVAL) do
     --====================================================
 
     elseif PlaceId == TRADE_WORLD then
+
+        SetNextCheck(
+            CHECK_INTERVAL
+        )
+
 
         CheckTradeWorld()
 
@@ -561,6 +1168,7 @@ while task.wait(CHECK_INTERVAL) do
             "--",
             "UNKNOWN PLACE"
         )
+
 
         warn(
             "[WORLD ROUTER] Unknown PlaceId:",
