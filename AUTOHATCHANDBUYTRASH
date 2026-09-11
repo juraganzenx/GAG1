@@ -6,7 +6,7 @@
 --   Springtide Egg = 0 -> TRAVEL TO TRADE WORLD
 --
 -- TRADE WORLD:
---   Springbee + Jerboa + Nyala < 300 -> BUYTRASH
+--   Spring Bee + Jerboa + Nyala < 300 -> BUYTRASH
 --   Total >= 300 -> KICK
 --
 -- CHECK:
@@ -716,7 +716,7 @@ local function CountTargetPets()
 
     local Counts = {
 
-        Springbee = 0,
+        Spring Bee = 0,
 
         Jerboa = 0,
 
@@ -790,7 +790,7 @@ local function CountTargetPets()
 
 
     Counts.Total =
-        Counts.Springbee
+        Counts.Spring Bee
         + Counts.Jerboa
         + Counts.Nyala
 
@@ -1191,8 +1191,8 @@ local function CheckTradeWorld()
     )
 
     warn(
-        "Springbee:",
-        Counts.Springbee
+        "Spring Bee:",
+        Counts.Spring Bee
     )
 
     warn(
@@ -1241,7 +1241,7 @@ local function CheckTradeWorld()
 
 
         LocalPlayer:Kick(
-            "Springbee + Jerboa + Nyala reached 300."
+            "Spring Bee + Jerboa + Nyala reached 300."
         )
 
 
