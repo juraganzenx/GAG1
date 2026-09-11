@@ -663,7 +663,7 @@ end
 
 local TARGET_PETS = {
 
-    Springbee = true,
+    Spring Bee = true,
 
     Jerboa = true,
 
