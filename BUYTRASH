@@ -1,4 +1,4 @@
---// BUY LISTING NO CLICK GUI
+--// BUY LISTING + FIND SELLER + EGG GROUP SYSTEM
 
 --// SERVICES
 local Players = game:GetService("Players")
@@ -823,154 +823,54 @@ addBtn.Activated:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- FIND SELLER REMOTE
+-- UI CLICK
 ----------------------------------------------------------------
+local function uiClick(guiObject)
 
-local RAPUtil = require(
-	ReplicatedStorage.Modules.TradeTokens.TokenRAPUtil
-)
-
-local TokenRAPs =
-	ReplicatedStorage.GameEvents.TradeEvents.TokenRAPs
-
-local FindSellers =
-	TokenRAPs:WaitForChild("FindSellers")
-
-local TeleportToListing =
-	TokenRAPs:WaitForChild("TeleportToListing")
-
-----------------------------------------------------------------
--- FIND SELLER STATE
-----------------------------------------------------------------
-
-local teleportingSeller = false
-
-local function clearFindSellerState()
-	getgenv().FindSellerListingId = nil
-	getgenv().FindSellerPet = nil
-end
-
-----------------------------------------------------------------
--- READ LISTING AFTER TELEPORT
-----------------------------------------------------------------
-
-local function readFindSellerListing()
-	local listingId = getgenv().FindSellerListingId
-	local targetPet = getgenv().FindSellerPet
-
-	if not listingId then
-		return nil
+	if not guiObject then
+		return
 	end
 
-	print("================================")
-	print("READ FIND SELLER LISTING")
-	print("================================")
-	print("Target Pet:", targetPet)
-	print("Listing ID:", listingId)
+	pcall(function()
+		GuiService.SelectedObject = guiObject
+	end)
 
-	info.Text = "Reading seller data..."
+	task.wait(0.15)
 
-	local data
+	pcall(function()
 
-	for attempt = 1, 50 do
-		local ok, result = pcall(function()
-			return BoothsReplication:GetDataAsync()
-		end)
+		VirtualInputManager:SendKeyEvent(
+			true,
+			Enum.KeyCode.Return,
+			false,
+			game
+		)
 
-		if ok and result and result.Booths and result.Players then
-			data = result
-			break
-		end
+		task.wait(0.05)
 
-		task.wait(0.2)
-	end
+		VirtualInputManager:SendKeyEvent(
+			false,
+			Enum.KeyCode.Return,
+			false,
+			game
+		)
 
-	if not data then
-		warn("Booths data belum tersedia")
-		info.Text = "Booths data unavailable"
-		return nil
-	end
+	end)
 
-	for boothUUID, booth in pairs(data.Booths or {}) do
-		local ownerId = booth.Owner
+	pcall(function()
+		guiObject:Activate()
+	end)
 
-		if ownerId then
-			local playerData = data.Players[ownerId]
+	pcall(function()
+		firesignal(guiObject.MouseButton1Click)
+	end)
 
-			if playerData and playerData.Listings then
-				local listing = playerData.Listings[listingId]
-
-				if listing then
-					local item =
-						playerData.Items
-						and playerData.Items[listing.ItemId]
-
-					print("================================")
-					print("LISTING FOUND")
-					print("================================")
-					print("Booth UUID:", boothUUID)
-					print("Owner ID:", ownerId)
-					print("Listing ID:", listingId)
-					print("Item ID:", listing.ItemId)
-					print("Item Type:", listing.ItemType)
-					print("PRICE:", listing.Price)
-
-					if item then
-						print("PetType:", item.PetType)
-						print("Name:", item.Name)
-
-						if item.PetData then
-							print(
-								"Mutation:",
-								item.PetData.MutationType
-							)
-
-							print(
-								"Level:",
-								item.PetData.Level
-							)
-
-							print(
-								"Weight:",
-								item.PetData.BaseWeight
-							)
-						end
-					end
-
-					info.Text =
-						("SELLER FOUND | $%s")
-						:format(tostring(listing.Price))
-
-					local result = {
-						boothUUID = boothUUID,
-						ownerId = ownerId,
-						listingId = listingId,
-						listing = listing,
-						item = item,
-						price = listing.Price
-					}
-
-					clearFindSellerState()
-
-					return result
-				end
-			end
-		end
-	end
-
-	warn(
-		"Listing ID tidak ditemukan:",
-		listingId
-	)
-
-	info.Text = "Listing not found"
-
-	return nil
 end
 
 ----------------------------------------------------------------
 -- TELEPORT TO SELLER
 ----------------------------------------------------------------
+local teleportingSeller = false
 
 local function teleportToSeller(selectedPet)
 
@@ -991,150 +891,290 @@ local function teleportToSeller(selectedPet)
 		return
 	end
 
-	info.Text =
-		"Finding seller: " .. selectedPet
+	info.Text = "Finding seller for "..selectedPet
+
+	task.wait(3)
+
+	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 	---------------------------------------------------
-	-- GET DEFAULT ITEM DATA
+	-- SAFE CLICK
 	---------------------------------------------------
 
-	local dataOK, itemData = pcall(function()
-		return RAPUtil.GetDefaultItemData(
-			"Pet",
-			selectedPet
-		)
+	local function safeClick(pathTable)
+
+		local obj
+
+		local ok = pcall(function()
+
+			obj = playerGui
+
+			for _,v in ipairs(pathTable) do
+				obj = obj:WaitForChild(v,5)
+			end
+
+		end)
+
+		if ok and obj then
+
+			uiClick(obj)
+
+			return true
+		end
+
+		return false
+
+	end
+
+	---------------------------------------------------
+	-- OPEN INDEX
+	---------------------------------------------------
+
+	safeClick({
+		"Teleport_UI",
+		"TradePlaza",
+		"Index"
+	})
+
+	task.wait(1)
+
+	---------------------------------------------------
+	-- CLICK PETS
+	---------------------------------------------------
+
+	safeClick({
+		"TradePlazaIndex",
+		"Frame",
+		"SideBtns",
+		"Pets"
+	})
+
+	task.wait(1)
+
+	---------------------------------------------------
+	-- SEARCH BOX
+	---------------------------------------------------
+
+	local searchBox
+
+	pcall(function()
+
+		searchBox = playerGui
+			:WaitForChild("TradePlazaIndex")
+			:WaitForChild("Frame")
+			:WaitForChild("Sections")
+			:WaitForChild("ItemsList")
+			:WaitForChild("SearchBox")
+
 	end)
 
-	if not dataOK or not itemData then
-		warn(
-			"GetDefaultItemData failed:",
-			itemData
-		)
+	if not searchBox then
 
-		info.Text = "Item data error"
-
+		info.Text = "SearchBox not found"
 		teleportingSeller = false
+
 		return
 	end
 
 	---------------------------------------------------
-	-- FIND SELLER
+	-- TYPE SEARCH
 	---------------------------------------------------
 
-	local ok, found, listingId = pcall(function()
-		return FindSellers:InvokeServer(
-			"Pet",
-			itemData
-		)
+	pcall(function()
+
+		searchBox:CaptureFocus()
+
+		task.wait(0.2)
+
+		searchBox.Text = ""
+
+		task.wait(0.1)
+
+		searchBox.Text = selectedPet
+
 	end)
 
-	print("================================")
-	print("FIND SELLER")
-	print("================================")
-	print("OK:", ok)
-	print("FOUND:", found)
-	print("LISTING ID:", listingId)
+	task.wait(0.5)
 
-	if not ok then
-		warn(
-			"FindSellers error:",
-			found
+	---------------------------------------------------
+	-- PRESS ENTER
+	---------------------------------------------------
+
+	pcall(function()
+
+		VirtualInputManager:SendKeyEvent(
+			true,
+			Enum.KeyCode.Return,
+			false,
+			game
 		)
 
-		info.Text = "FindSeller error"
+		task.wait(0.05)
 
-		teleportingSeller = false
-		return
-	end
-
-	if not found or not listingId then
-		info.Text =
-			"Seller not found: " .. selectedPet
-
-		teleportingSeller = false
-		return
-	end
-
-	---------------------------------------------------
-	-- SAVE STATE BEFORE TELEPORT
-	---------------------------------------------------
-
-	getgenv().FindSellerListingId = listingId
-	getgenv().FindSellerPet = selectedPet
-
-	print(
-		"Saved Listing ID:",
-		getgenv().FindSellerListingId
-	)
-
-	---------------------------------------------------
-	-- TELEPORT TO LISTING
-	---------------------------------------------------
-
-	info.Text =
-		"Teleporting to seller..."
-
-	local tpOK, tpResult = pcall(function()
-		return TeleportToListing:InvokeServer(
-			listingId,
-			true
+		VirtualInputManager:SendKeyEvent(
+			false,
+			Enum.KeyCode.Return,
+			false,
+			game
 		)
+
 	end)
 
-	print("================================")
-	print("TELEPORT TO LISTING")
-	print("================================")
-	print("OK:", tpOK)
-	print("RESULT:", tpResult)
+	task.wait(1)
 
-	if not tpOK then
-		warn(
-			"TeleportToListing error:",
-			tpResult
-		)
+	---------------------------------------------------
+	-- FIND PET BUTTON
+	---------------------------------------------------
 
-		info.Text = "Teleport failed"
+	local petBtn
 
-		clearFindSellerState()
+	for i = 1, 80 do
+
+		pcall(function()
+
+			local virtualList = playerGui
+				:WaitForChild("TradePlazaIndex")
+				:WaitForChild("Frame")
+				:WaitForChild("Sections")
+				:WaitForChild("ItemsList")
+				:WaitForChild("ItemsVirtualList")
+
+			------------------------------------------------
+			-- EXACT
+			------------------------------------------------
+
+			petBtn = virtualList:FindFirstChild(selectedPet)
+
+			------------------------------------------------
+			-- LOWER SEARCH
+			------------------------------------------------
+
+			if not petBtn then
+
+				for _,v in ipairs(virtualList:GetChildren()) do
+
+					if v.Name:lower():find(selectedPet:lower()) then
+						petBtn = v
+						break
+					end
+
+				end
+
+			end
+
+		end)
+
+		if petBtn then
+			break
+		end
+
+		task.wait(0.1)
+
+	end
+
+	if not petBtn then
+
+		info.Text = selectedPet.." not found"
 
 		teleportingSeller = false
+
 		return
 	end
 
-	info.Text =
-		"Teleported to " .. selectedPet
+	---------------------------------------------------
+	-- CLICK PET
+	---------------------------------------------------
+
+	uiClick(petBtn)
+
+	task.wait(1)
+
+	---------------------------------------------------
+	-- FIND SELLER BUTTON
+	---------------------------------------------------
+
+	local findBtn
+
+	pcall(function()
+
+		findBtn = playerGui
+			:WaitForChild("TradePlazaIndex")
+			:WaitForChild("Frame")
+			:WaitForChild("Sections")
+			:WaitForChild("RAPHistory")
+			:WaitForChild("FindSellers")
+
+	end)
+
+	if not findBtn then
+
+		info.Text = "FindSeller button missing"
+
+		teleportingSeller = false
+
+		return
+	end
+
+	uiClick(findBtn)
+
+	task.wait(1)
+
+	---------------------------------------------------
+	-- YES BUTTON
+	---------------------------------------------------
+
+	task.wait(1.2)
+
+	local yesBtn = playerGui
+		:WaitForChild("FindSellerPrompt")
+		:WaitForChild("Frame")
+		:WaitForChild("Options")
+		:WaitForChild("Yes")
+
+	---------------------------------------------------
+	-- EXTRA SAFE CLICK
+	---------------------------------------------------
+
+	pcall(function()
+
+		yesBtn.Visible = true
+
+		GuiService.SelectedObject = yesBtn
+
+	end)
+
+	task.wait(0.15)
+
+	uiClick(yesBtn)
+
+	task.wait(0.15)
+
+	pcall(function()
+		firesignal(yesBtn.MouseButton1Click)
+	end)
+
+	pcall(function()
+		firesignal(yesBtn.Activated)
+	end)
+
+	---------------------------------------------------
+	-- CLEAN GUI SELECT
+	---------------------------------------------------
+
+	pcall(function()
+
+		GuiService.SelectedObject = nil
+		GuiService.AutoSelectGuiEnabled = false
+
+	end)
+
+	info.Text = "Teleporting to seller of "..selectedPet
+
+	task.wait(3)
 
 	teleportingSeller = false
+
 end
-
-----------------------------------------------------------------
--- READ PENDING FIND SELLER AFTER SERVER LOAD
-----------------------------------------------------------------
-
-task.spawn(function()
-
-	local pendingListing =
-		getgenv().FindSellerListingId
-
-	if not pendingListing then
-		return
-	end
-
-	task.wait(5)
-
-	local result =
-		readFindSellerListing()
-
-	if result then
-
-		print("================================")
-		print("FIND SELLER COMPLETE")
-		print("================================")
-		print("PRICE:", result.price)
-
-	end
-
-end)
 
 ----------------------------------------------------------------
 -- BUY LOGIC
