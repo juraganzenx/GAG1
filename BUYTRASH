@@ -1,157 +1,186 @@
---//=============================================a===========
+--//========================================================
 --// BUY LISTING + DIRECT FIND SELLER
---//========================================================
---//
---// FLOW:
---//   AUTO BUY ON
---//
---//   1. SCAN LISTINGS
---//   2. IF MATCH FOUND:
---//        BUY ALL MATCH
---//        SCAN AGAIN
---//        DO NOT FIND SELLER
---//
---//   3. IF NO MATCH:
---//        FIND SELLER VIA REMOTE
---//        FindSellers:InvokeServer()
---//        TeleportToListing:InvokeServer()
---//
---// NO GUI CLICK FOR FIND SELLER
---//
---// EMPTY MIN KG  = 0
---// EMPTY MIN LVL = 0
---//
---//========================================================
-
-
---//========================================================
---// SERVICES
+--// READY TO EXECUTE
 --//========================================================
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 
+local LocalPlayer = Players.LocalPlayer
+
+if not LocalPlayer then
+    return
+end
 
 --//========================================================
 --// REMOVE OLD GUI
 --//========================================================
 
 pcall(function()
+    local old = LocalPlayer.PlayerGui:FindFirstChild("BuyListingGui")
 
-	local old = LocalPlayer.PlayerGui:FindFirstChild("BuyListingGui")
-
-	if old then
-		old:Destroy()
-	end
-
+    if old then
+        old:Destroy()
+    end
 end)
-
 
 --//========================================================
 --// MODULES
 --//========================================================
 
-local BoothsReplication = require(
-	ReplicatedStorage.Modules.ReplicationReciever
-).new("Booths")
+local BoothsReplication
 
+local TradeBoothsData
 
-local TradeBoothsData = require(
-	ReplicatedStorage.Data.TradeBoothsData
-)
+local TradeEvents
 
+local ItemNameFinder
 
-local TradeEvents =
-	ReplicatedStorage.GameEvents.TradeEvents
+local PetList
 
+local RAPUtil
 
-local ItemNameFinder = require(
-	ReplicatedStorage.Modules.ItemNameFinder
-)
+local TokenRAPs
 
+local FindSellers
 
-local PetList = require(
-	ReplicatedStorage.Data.PetRegistry
-).PetList
+local TeleportToListing
 
+local moduleOK = true
 
-local RAPUtil = require(
-	ReplicatedStorage.Modules.TradeTokens.TokenRAPUtil
-)
+local function loadModule(fn)
+    local ok, result = pcall(fn)
 
+    if not ok then
+        warn("[BUY LISTING] MODULE ERROR:", result)
+        moduleOK = false
+        return nil
+    end
 
-local TokenRAPs =
-	ReplicatedStorage.GameEvents.TradeEvents.TokenRAPs
+    return result
+end
 
-
-local FindSellers =
-	TokenRAPs:WaitForChild("FindSellers")
-
-
-local TeleportToListing =
-	TokenRAPs:WaitForChild("TeleportToListing")
-
-
-pcall(function()
-	BoothsReplication:GetDataAsync()
+BoothsReplication = loadModule(function()
+    return require(
+        ReplicatedStorage.Modules.ReplicationReciever
+    ).new("Booths")
 end)
 
+TradeBoothsData = loadModule(function()
+    return require(
+        ReplicatedStorage.Data.TradeBoothsData
+    )
+end)
+
+TradeEvents = loadModule(function()
+    return ReplicatedStorage.GameEvents.TradeEvents
+end)
+
+ItemNameFinder = loadModule(function()
+    return require(
+        ReplicatedStorage.Modules.ItemNameFinder
+    )
+end)
+
+PetList = loadModule(function()
+    return require(
+        ReplicatedStorage.Data.PetRegistry
+    ).PetList
+end)
+
+RAPUtil = loadModule(function()
+    return require(
+        ReplicatedStorage.Modules.TradeTokens.TokenRAPUtil
+    )
+end)
+
+if not moduleOK then
+    warn("[BUY LISTING] Some modules failed to load.")
+end
 
 --//========================================================
---// PET DATA HELPERS
+--// REMOTES
+--//========================================================
+
+if TradeEvents then
+
+    TokenRAPs =
+        TradeEvents:FindFirstChild("TokenRAPs")
+
+end
+
+if TokenRAPs then
+
+    FindSellers =
+        TokenRAPs:FindFirstChild("FindSellers")
+
+    TeleportToListing =
+        TokenRAPs:FindFirstChild("TeleportToListing")
+
+end
+
+--//========================================================
+--// BOOTH DATA INITIALIZE
+--//========================================================
+
+pcall(function()
+
+    if BoothsReplication then
+        BoothsReplication:GetDataAsync()
+    end
+
+end)
+
+--//========================================================
+--// PET DATA
 --//========================================================
 
 local function getPetData(item)
 
-	if type(item) ~= "table" then
-		return {}
-	end
+    if type(item) ~= "table" then
+        return {}
+    end
 
-	return item.PetData or {}
+    return item.PetData or {}
 
 end
-
 
 local function getBaseWeight(item)
 
-	local petData = getPetData(item)
+    local petData = getPetData(item)
 
-	return tonumber(
-		petData.BaseWeight
-		or petData.baseWeight
-	) or 0
+    return tonumber(
+        petData.BaseWeight
+        or petData.baseWeight
+    ) or 0
 
 end
-
 
 local function getLevel(item)
 
-	local petData = getPetData(item)
+    local petData = getPetData(item)
 
-	return tonumber(
-		petData.Level
-		or petData.level
-	) or 0
+    return tonumber(
+        petData.Level
+        or petData.level
+    ) or 0
 
 end
-
 
 local function getMutationType(item)
 
-	local petData = getPetData(item)
+    local petData = getPetData(item)
 
-	return tostring(
-		petData.MutationType
-		or petData.mutationType
-		or petData.Mutation
-		or ""
-	)
+    return tostring(
+        petData.MutationType
+        or petData.mutationType
+        or petData.Mutation
+        or ""
+    )
 
 end
-
 
 --//========================================================
 --// EGG GROUPS
@@ -159,33 +188,31 @@ end
 
 local EggGroups = {
 
-	["Night Egg"] = {
+    ["Night Egg"] = {
 
-		"Hedgehog",
-		"Mole",
-		"Frog",
-		"Echo Frog",
-		"Night Owl",
-		"Raccoon"
+        "Hedgehog",
+        "Mole",
+        "Frog",
+        "Echo Frog",
+        "Night Owl",
+        "Raccoon"
 
-	}
+    }
 
 }
 
-
 --//========================================================
---// SAVE FILES
+--// FILES
 --//========================================================
 
 local SAVE_FILE =
-	"AutoBUYLISTINGHUGE.txt"
+    "AutoBUYLISTINGHUGE.txt"
 
 local AUTO_BUY_FILE =
-	"AutoBuyStatusHUGE.txt"
+    "AutoBuyStatusHUGE.txt"
 
 local FIND_SELLER_FILE =
-	"FindSellerTargetHUGE.txt"
-
+    "FindSellerTargetHUGE.txt"
 
 --//========================================================
 --// SAVE SETTINGS
@@ -193,46 +220,47 @@ local FIND_SELLER_FILE =
 
 local function saveSettings(data)
 
-	if not writefile then
-		return
-	end
+    if not writefile then
+        return
+    end
 
-	pcall(function()
+    pcall(function()
 
-		writefile(
-			SAVE_FILE,
-			HttpService:JSONEncode(data)
-		)
+        writefile(
+            SAVE_FILE,
+            HttpService:JSONEncode(data)
+        )
 
-	end)
+    end)
 
 end
-
 
 local function loadSettings()
 
-	if readfile
-	and isfile
-	and isfile(SAVE_FILE) then
+    if readfile
+    and isfile
+    and isfile(SAVE_FILE) then
 
-		local ok, data = pcall(function()
+        local ok, data = pcall(function()
 
-			return HttpService:JSONDecode(
-				readfile(SAVE_FILE)
-			)
+            return HttpService:JSONDecode(
+                readfile(SAVE_FILE)
+            )
 
-		end)
+        end)
 
-		if ok and type(data) == "table" then
-			return data
-		end
+        if ok
+        and type(data) == "table" then
 
-	end
+            return data
 
-	return {}
+        end
+
+    end
+
+    return {}
 
 end
-
 
 --//========================================================
 --// AUTO BUY SAVE
@@ -240,41 +268,42 @@ end
 
 local function saveAutoBuyStatus(state)
 
-	if not writefile then
-		return
-	end
+    if not writefile then
+        return
+    end
 
-	pcall(function()
+    pcall(function()
 
-		writefile(
-			AUTO_BUY_FILE,
-			state and "ON" or "OFF"
-		)
+        writefile(
+            AUTO_BUY_FILE,
+            state and "ON" or "OFF"
+        )
 
-	end)
+    end)
 
 end
-
 
 local function loadAutoBuyStatus()
 
-	if isfile
-	and readfile
-	and isfile(AUTO_BUY_FILE) then
+    if isfile
+    and readfile
+    and isfile(AUTO_BUY_FILE) then
 
-		local ok, data =
-			pcall(readfile, AUTO_BUY_FILE)
+        local ok, data =
+            pcall(readfile, AUTO_BUY_FILE)
 
-		if ok and data then
-			return data == "ON"
-		end
+        if ok
+        and data then
 
-	end
+            return data == "ON"
 
-	return false
+        end
+
+    end
+
+    return false
 
 end
-
 
 --//========================================================
 --// FIND SELLER SAVE
@@ -282,60 +311,59 @@ end
 
 local function saveFindSellerTarget(target)
 
-	if not writefile then
-		return
-	end
+    if not writefile then
+        return
+    end
 
-	pcall(function()
+    pcall(function()
 
-		writefile(
-			FIND_SELLER_FILE,
-			target or ""
-		)
+        writefile(
+            FIND_SELLER_FILE,
+            target or ""
+        )
 
-	end)
+    end)
 
 end
-
 
 local function loadFindSellerTarget()
 
-	if readfile
-	and isfile
-	and isfile(FIND_SELLER_FILE) then
+    if readfile
+    and isfile
+    and isfile(FIND_SELLER_FILE) then
 
-		local ok, data =
-			pcall(readfile, FIND_SELLER_FILE)
+        local ok, data =
+            pcall(readfile, FIND_SELLER_FILE)
 
-		if ok
-		and data
-		and data ~= "" then
+        if ok
+        and data
+        and data ~= "" then
 
-			return data
+            return data
 
-		end
+        end
 
-	end
+    end
 
-	return nil
+    return nil
 
 end
 
-
 --//========================================================
---// FIND SELLER PET
+--// FIND SELLER TARGET
 --//========================================================
 
 local function getFindSellerPet(target)
 
-	if EggGroups[target] then
-		return EggGroups[target][1]
-	end
+    if EggGroups[target] then
 
-	return target
+        return EggGroups[target][1]
+
+    end
+
+    return target
 
 end
-
 
 --//========================================================
 --// GUI
@@ -345,32 +373,44 @@ local gui = Instance.new("ScreenGui")
 
 gui.Name = "BuyListingGui"
 gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer.PlayerGui
-
 
 pcall(function()
 
-	if syn and syn.protect_gui then
-		syn.protect_gui(gui)
-	end
+    if syn and syn.protect_gui then
+        syn.protect_gui(gui)
+    end
 
 end)
 
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+--//========================================================
+--// MAIN
+--//========================================================
 
 local main = Instance.new("Frame")
 
 main.Parent = gui
-main.Size = UDim2.fromScale(0.50, 0.78)
-main.AnchorPoint = Vector2.new(0.5, 0.5)
-main.Position = UDim2.fromScale(0.5, 0.5)
+
+main.Size =
+    UDim2.fromScale(0.72, 0.76)
+
+main.AnchorPoint =
+    Vector2.new(0.5, 0.5)
+
+main.Position =
+    UDim2.fromScale(0.5, 0.5)
+
 main.BackgroundColor3 =
-	Color3.fromRGB(25,25,25)
-main.BackgroundTransparency = 0.15
+    Color3.fromRGB(25,25,25)
+
+main.BackgroundTransparency = 0.08
+
 main.BorderSizePixel = 0
+
 main.Active = true
 
 Instance.new("UICorner", main)
-
 
 --//========================================================
 --// TITLE
@@ -379,470 +419,540 @@ Instance.new("UICorner", main)
 local title = Instance.new("TextLabel")
 
 title.Parent = main
-title.Size = UDim2.new(1,0,0,45)
-title.BackgroundTransparency = 1
-title.Text = "BUY LISTING MULTI PET"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 22
-title.TextColor3 = Color3.new(1,1,1)
 
+title.Size =
+    UDim2.new(1,-100,0,45)
+
+title.Position =
+    UDim2.new(0,15,0,0)
+
+title.BackgroundTransparency = 1
+
+title.Text =
+    "BUY LISTING MULTI PET"
+
+title.Font =
+    Enum.Font.GothamBold
+
+title.TextSize = 20
+
+title.TextColor3 =
+    Color3.new(1,1,1)
+
+title.TextXAlignment =
+    Enum.TextXAlignment.Left
 
 --//========================================================
 --// CLOSE
 --//========================================================
 
-local closeBtn = Instance.new("TextButton")
+local closeBtn =
+    Instance.new("TextButton")
 
 closeBtn.Parent = main
-closeBtn.Size = UDim2.new(0,30,0,30)
-closeBtn.Position = UDim2.new(1,-38,0,8)
+
+closeBtn.Size =
+    UDim2.new(0,30,0,30)
+
+closeBtn.Position =
+    UDim2.new(1,-38,0,8)
+
 closeBtn.Text = "X"
-closeBtn.Font = Enum.Font.GothamBold
+
+closeBtn.Font =
+    Enum.Font.GothamBold
+
 closeBtn.TextSize = 18
+
 closeBtn.BackgroundColor3 =
-	Color3.fromRGB(200,50,50)
-closeBtn.TextColor3 = Color3.new(1,1,1)
+    Color3.fromRGB(200,50,50)
+
+closeBtn.TextColor3 =
+    Color3.new(1,1,1)
+
 closeBtn.BorderSizePixel = 0
 
 Instance.new("UICorner", closeBtn)
 
-
 closeBtn.Activated:Connect(function()
 
-	gui.Enabled = false
+    gui.Enabled = false
 
 end)
-
 
 --//========================================================
 --// MINIMIZE
 --//========================================================
 
 local minimized = false
+
 local originalSize = main.Size
+
 local hiddenObjects = {}
 
-
-local minimizeBtn = Instance.new("TextButton")
+local minimizeBtn =
+    Instance.new("TextButton")
 
 minimizeBtn.Parent = main
-minimizeBtn.Size = UDim2.new(0,30,0,30)
-minimizeBtn.Position = UDim2.new(1,-75,0,8)
+
+minimizeBtn.Size =
+    UDim2.new(0,30,0,30)
+
+minimizeBtn.Position =
+    UDim2.new(1,-75,0,8)
+
 minimizeBtn.Text = "-"
-minimizeBtn.Font = Enum.Font.GothamBold
+
+minimizeBtn.Font =
+    Enum.Font.GothamBold
+
 minimizeBtn.TextSize = 18
+
 minimizeBtn.BackgroundColor3 =
-	Color3.fromRGB(70,70,70)
-minimizeBtn.TextColor3 = Color3.new(1,1,1)
+    Color3.fromRGB(70,70,70)
+
+minimizeBtn.TextColor3 =
+    Color3.new(1,1,1)
+
 minimizeBtn.BorderSizePixel = 0
 
 Instance.new("UICorner", minimizeBtn)
 
-
 minimizeBtn.Activated:Connect(function()
 
-	minimized = not minimized
+    minimized = not minimized
 
-	if minimized then
+    if minimized then
 
-		main.Size = UDim2.new(
-			originalSize.X.Scale,
-			originalSize.X.Offset,
-			0,
-			45
-		)
+        main.Size =
+            UDim2.new(
+                originalSize.X.Scale,
+                originalSize.X.Offset,
+                0,
+                45
+            )
 
-		minimizeBtn.Text = "+"
+        minimizeBtn.Text = "+"
 
-		for _, obj in ipairs(main:GetChildren()) do
+        for _, obj in ipairs(main:GetChildren()) do
 
-			if obj ~= title
-			and obj ~= closeBtn
-			and obj ~= minimizeBtn then
+            if obj ~= title
+            and obj ~= closeBtn
+            and obj ~= minimizeBtn then
 
-				if obj:IsA("GuiObject") then
+                if obj:IsA("GuiObject") then
 
-					hiddenObjects[obj] =
-						obj.Visible
+                    hiddenObjects[obj] =
+                        obj.Visible
 
-					obj.Visible = false
+                    obj.Visible = false
 
-				end
+                end
 
-			end
+            end
 
-		end
+        end
 
-	else
+    else
 
-		main.Size = originalSize
+        main.Size = originalSize
 
-		minimizeBtn.Text = "-"
+        minimizeBtn.Text = "-"
 
-		for obj, visible in pairs(hiddenObjects) do
+        for obj, visible in pairs(hiddenObjects) do
 
-			if obj
-			and obj.Parent then
+            if obj
+            and obj.Parent then
 
-				obj.Visible = visible
+                obj.Visible = visible
 
-			end
+            end
 
-		end
+        end
 
-	end
+    end
 
 end)
-
 
 --//========================================================
 --// DRAG
 --//========================================================
 
 local dragging = false
-local dragStart
-local startPos
 
+local dragStart
+
+local startPos
 
 main.InputBegan:Connect(function(input)
 
-	if input.UserInputType ==
-		Enum.UserInputType.MouseButton1
+    if input.UserInputType ==
+        Enum.UserInputType.MouseButton1
+    or input.UserInputType ==
+        Enum.UserInputType.Touch then
 
-	or input.UserInputType ==
-		Enum.UserInputType.Touch then
+        dragging = true
 
-		dragging = true
-		dragStart = input.Position
-		startPos = main.Position
+        dragStart =
+            input.Position
 
-		input.Changed:Connect(function()
+        startPos =
+            main.Position
 
-			if input.UserInputState ==
-				Enum.UserInputState.End then
+        input.Changed:Connect(function()
 
-				dragging = false
+            if input.UserInputState ==
+                Enum.UserInputState.End then
 
-			end
+                dragging = false
 
-		end)
+            end
 
-	end
+        end)
+
+    end
 
 end)
-
 
 UserInputService.InputChanged:Connect(function(input)
 
-	if not dragging then
-		return
-	end
+    if not dragging then
+        return
+    end
 
-	if input.UserInputType ==
-		Enum.UserInputType.MouseMovement
+    if input.UserInputType ==
+        Enum.UserInputType.MouseMovement
+    or input.UserInputType ==
+        Enum.UserInputType.Touch then
 
-	or input.UserInputType ==
-		Enum.UserInputType.Touch then
+        local delta =
+            input.Position - dragStart
 
-		local delta =
-			input.Position - dragStart
+        main.Position =
+            UDim2.new(
 
-		main.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
 
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
 
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
+            )
 
-		)
-
-	end
+    end
 
 end)
 
-
 --//========================================================
---// SEARCH BOX
+--// SEARCH
 --//========================================================
 
-local searchBox = Instance.new("TextBox")
+local searchBox =
+    Instance.new("TextBox")
 
 searchBox.Parent = main
-searchBox.Size = UDim2.new(0.40,0,0,40)
-searchBox.Position = UDim2.new(0.03,0,0,55)
+
+searchBox.Size =
+    UDim2.new(0.32,0,0,40)
+
+searchBox.Position =
+    UDim2.new(0.03,0,0,55)
+
 searchBox.PlaceholderText =
-	"Search Pet / Egg..."
+    "Search Pet / Egg..."
+
 searchBox.Text = ""
-searchBox.Font = Enum.Font.Gotham
-searchBox.TextSize = 16
+
+searchBox.Font =
+    Enum.Font.Gotham
+
+searchBox.TextSize = 14
+
 searchBox.BackgroundColor3 =
-	Color3.fromRGB(40,40,40)
+    Color3.fromRGB(40,40,40)
+
 searchBox.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
+
 searchBox.BorderSizePixel = 0
 
 Instance.new("UICorner", searchBox)
-
 
 --//========================================================
 --// PRICE
 --//========================================================
 
-local priceBox = Instance.new("TextBox")
+local priceBox =
+    Instance.new("TextBox")
 
 priceBox.Parent = main
-priceBox.Size = UDim2.new(0.16,0,0,40)
-priceBox.Position = UDim2.new(0.45,0,0,55)
-priceBox.PlaceholderText = "Price"
+
+priceBox.Size =
+    UDim2.new(0.12,0,0,40)
+
+priceBox.Position =
+    UDim2.new(0.36,0,0,55)
+
+priceBox.PlaceholderText =
+    "Price"
+
 priceBox.Text = ""
-priceBox.Font = Enum.Font.Gotham
-priceBox.TextSize = 16
+
+priceBox.Font =
+    Enum.Font.Gotham
+
+priceBox.TextSize = 14
+
 priceBox.BackgroundColor3 =
-	Color3.fromRGB(40,40,40)
+    Color3.fromRGB(40,40,40)
+
 priceBox.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
+
 priceBox.BorderSizePixel = 0
 
 Instance.new("UICorner", priceBox)
 
-
 --//========================================================
---// MIN WEIGHT
+--// MIN KG
 --//========================================================
 
-local minWeightBox = Instance.new("TextBox")
+local minWeightBox =
+    Instance.new("TextBox")
 
 minWeightBox.Parent = main
+
 minWeightBox.Size =
-	UDim2.new(0.16,0,0,40)
+    UDim2.new(0.12,0,0,40)
 
 minWeightBox.Position =
-	UDim2.new(0.61,0,0,55)
+    UDim2.new(0.49,0,0,55)
 
 minWeightBox.PlaceholderText =
-	"Min Weight"
+    "Min KG"
 
 minWeightBox.Text = ""
 
 minWeightBox.Font =
-	Enum.Font.Gotham
+    Enum.Font.Gotham
 
-minWeightBox.TextSize = 16
+minWeightBox.TextSize = 14
 
 minWeightBox.BackgroundColor3 =
-	Color3.fromRGB(40,40,40)
+    Color3.fromRGB(40,40,40)
 
 minWeightBox.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
 
 minWeightBox.BorderSizePixel = 0
 
 Instance.new("UICorner", minWeightBox)
 
-
 --//========================================================
 --// MIN LEVEL
 --//========================================================
 
-local minLevelBox = Instance.new("TextBox")
+local minLevelBox =
+    Instance.new("TextBox")
 
 minLevelBox.Parent = main
+
 minLevelBox.Size =
-	UDim2.new(0.16,0,0,40)
+    UDim2.new(0.12,0,0,40)
 
 minLevelBox.Position =
-	UDim2.new(0.73,0,0,55)
+    UDim2.new(0.62,0,0,55)
 
 minLevelBox.PlaceholderText =
-	"Min Level"
+    "Min LVL"
 
 minLevelBox.Text = ""
 
 minLevelBox.Font =
-	Enum.Font.Gotham
+    Enum.Font.Gotham
 
-minLevelBox.TextSize = 16
+minLevelBox.TextSize = 14
 
 minLevelBox.BackgroundColor3 =
-	Color3.fromRGB(40,40,40)
+    Color3.fromRGB(40,40,40)
 
 minLevelBox.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
 
 minLevelBox.BorderSizePixel = 0
 
 Instance.new("UICorner", minLevelBox)
 
-
 --//========================================================
 --// MUTATION
 --//========================================================
 
-local mutationBox = Instance.new("TextBox")
+local mutationBox =
+    Instance.new("TextBox")
 
 mutationBox.Parent = main
+
 mutationBox.Size =
-	UDim2.new(0.16,0,0,40)
+    UDim2.new(0.12,0,0,40)
 
 mutationBox.Position =
-	UDim2.new(0.85,0,0,55)
+    UDim2.new(0.75,0,0,55)
 
 mutationBox.PlaceholderText =
-	"Mutation"
+    "Mutation"
 
 mutationBox.Text = ""
 
 mutationBox.Font =
-	Enum.Font.Gotham
+    Enum.Font.Gotham
 
-mutationBox.TextSize = 16
+mutationBox.TextSize = 14
 
 mutationBox.BackgroundColor3 =
-	Color3.fromRGB(40,40,40)
+    Color3.fromRGB(40,40,40)
 
 mutationBox.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
 
 mutationBox.BorderSizePixel = 0
 
 Instance.new("UICorner", mutationBox)
 
-
 --//========================================================
---// ADD
+--// ADD BUTTON
 --//========================================================
 
-local addBtn = Instance.new("TextButton")
+local addBtn =
+    Instance.new("TextButton")
 
 addBtn.Parent = main
+
 addBtn.Size =
-	UDim2.new(0.10,0,0,40)
+    UDim2.new(0.08,0,0,40)
 
 addBtn.Position =
-	UDim2.new(1,-95,0,55)
+    UDim2.new(0.88,0,0,55)
 
-addBtn.Text = "ADD"
+addBtn.Text =
+    "ADD"
 
 addBtn.Font =
-	Enum.Font.GothamBold
+    Enum.Font.GothamBold
 
-addBtn.TextSize = 15
+addBtn.TextSize = 13
 
 addBtn.BackgroundColor3 =
-	Color3.fromRGB(0,170,90)
+    Color3.fromRGB(0,170,90)
 
 addBtn.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
 
 addBtn.BorderSizePixel = 0
 
 Instance.new("UICorner", addBtn)
 
-
 --//========================================================
 --// INFO
 --//========================================================
 
-local info = Instance.new("TextLabel")
+local info =
+    Instance.new("TextLabel")
 
 info.Parent = main
+
 info.Position =
-	UDim2.new(0.03,0,0,90)
+    UDim2.new(0.03,0,0,100)
 
 info.Size =
-	UDim2.new(0.94,0,0,25)
+    UDim2.new(0.94,0,0,22)
 
 info.BackgroundTransparency = 1
 
-info.Text = "READY"
+info.Text =
+    "READY"
 
 info.Font =
-	Enum.Font.GothamBold
+    Enum.Font.GothamBold
 
-info.TextSize = 14
+info.TextSize = 13
 
 info.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
 
 info.TextXAlignment =
-	Enum.TextXAlignment.Left
-
+    Enum.TextXAlignment.Left
 
 --//========================================================
---// SEARCH RESULT
+--// RESULT FRAME
 --//========================================================
 
-local resultFrame = Instance.new("ScrollingFrame")
+local resultFrame =
+    Instance.new("ScrollingFrame")
 
 resultFrame.Parent = main
 
 resultFrame.Position =
-	UDim2.new(0.03,0,0,120)
+    UDim2.new(0.03,0,0,125)
 
 resultFrame.Size =
-	UDim2.new(0.46,0,1,-195)
+    UDim2.new(0.46,0,1,-195)
 
 resultFrame.CanvasSize =
-	UDim2.new(0,0,0,0)
+    UDim2.new(0,0,0,0)
 
 resultFrame.ScrollBarThickness = 6
 
 resultFrame.BackgroundColor3 =
-	Color3.fromRGB(30,30,30)
+    Color3.fromRGB(30,30,30)
 
 resultFrame.BorderSizePixel = 0
 
 Instance.new("UICorner", resultFrame)
 
-
 local resultLayout =
-	Instance.new("UIListLayout")
+    Instance.new("UIListLayout")
 
 resultLayout.Parent =
-	resultFrame
+    resultFrame
 
 resultLayout.Padding =
-	UDim.new(0,4)
-
+    UDim.new(0,4)
 
 --//========================================================
 --// ADDED LIST
 --//========================================================
 
 local listFrame =
-	Instance.new("ScrollingFrame")
+    Instance.new("ScrollingFrame")
 
 listFrame.Parent = main
 
 listFrame.Position =
-	UDim2.new(0.51,0,0,120)
+    UDim2.new(0.51,0,0,125)
 
 listFrame.Size =
-	UDim2.new(0.46,0,1,-195)
+    UDim2.new(0.46,0,1,-195)
 
 listFrame.CanvasSize =
-	UDim2.new(0,0,0,0)
+    UDim2.new(0,0,0,0)
 
-listFrame.ScrollBarThickness = 8
+listFrame.ScrollBarThickness = 6
 
 listFrame.BackgroundColor3 =
-	Color3.fromRGB(30,30,30)
+    Color3.fromRGB(30,30,30)
 
 listFrame.BorderSizePixel = 0
 
 Instance.new("UICorner", listFrame)
 
-
 local listLayout =
-	Instance.new("UIListLayout")
+    Instance.new("UIListLayout")
 
 listLayout.Parent =
-	listFrame
+    listFrame
 
 listLayout.Padding =
-	UDim.new(0,5)
-
+    UDim.new(0,5)
 
 --//========================================================
 --// DATA
@@ -851,43 +961,37 @@ listLayout.Padding =
 local selectedPet = nil
 
 local petDataList =
-	loadSettings()
+    loadSettings()
 
 local selectedFindSellerPet =
-	loadFindSellerTarget()
-
+    loadFindSellerTarget()
 
 --//========================================================
---// NORMALIZE OLD SETTINGS
+--// NORMALIZE
 --//========================================================
 
 for _, data in ipairs(petDataList) do
 
-	if data.minWeight == nil then
+    if type(data) == "table" then
 
-		data.minWeight =
-			tonumber(data.BaseWeight)
-			or 0
+        data.minWeight =
+            tonumber(data.minWeight)
+            or tonumber(data.BaseWeight)
+            or 0
 
-	end
+        data.minLevel =
+            tonumber(data.minLevel)
+            or tonumber(data.Level)
+            or 0
 
-	if data.minLevel == nil then
+        data.mutation =
+            tostring(data.mutation or "")
 
-		data.minLevel =
-			tonumber(data.Level)
-			or 0
-
-	end
-
-	if data.mutation == nil then
-		data.mutation = ""
-	end
+    end
 
 end
 
-
 saveSettings(petDataList)
-
 
 --//========================================================
 --// CANVAS
@@ -895,456 +999,404 @@ saveSettings(petDataList)
 
 local function updateCanvas()
 
-	resultFrame.CanvasSize =
-		UDim2.new(
-			0,
-			0,
-			0,
-			resultLayout.AbsoluteContentSize.Y + 10
-		)
+    pcall(function()
 
-	listFrame.CanvasSize =
-		UDim2.new(
-			0,
-			0,
-			0,
-			listLayout.AbsoluteContentSize.Y + 10
-		)
+        resultFrame.CanvasSize =
+            UDim2.new(
+                0,
+                0,
+                0,
+                resultLayout.AbsoluteContentSize.Y + 10
+            )
+
+        listFrame.CanvasSize =
+            UDim2.new(
+                0,
+                0,
+                0,
+                listLayout.AbsoluteContentSize.Y + 10
+            )
+
+    end)
 
 end
 
-
 resultLayout:GetPropertyChangedSignal(
-	"AbsoluteContentSize"
+    "AbsoluteContentSize"
 ):Connect(updateCanvas)
-
 
 listLayout:GetPropertyChangedSignal(
-	"AbsoluteContentSize"
+    "AbsoluteContentSize"
 ):Connect(updateCanvas)
 
-
 --//========================================================
---// REFRESH ADDED LIST
+--// REFRESH PET LIST
 --//========================================================
 
 local function refreshPetList()
 
-	for _, v in ipairs(
-		listFrame:GetChildren()
-	) do
+    for _, v in ipairs(listFrame:GetChildren()) do
 
-		if v:IsA("Frame") then
-			v:Destroy()
-		end
+        if v:IsA("Frame") then
+            v:Destroy()
+        end
 
-	end
+    end
 
+    for i, data in ipairs(petDataList) do
 
-	for i, data in ipairs(petDataList) do
+        local container =
+            Instance.new("Frame")
 
-		local container =
-			Instance.new("Frame")
+        container.Parent =
+            listFrame
 
-		container.Parent =
-			listFrame
+        container.Size =
+            UDim2.new(1,-5,0,45)
 
-		container.Size =
-			UDim2.new(1,-5,0,45)
+        container.BackgroundColor3 =
+            Color3.fromRGB(40,40,40)
 
-		container.BackgroundColor3 =
-			Color3.fromRGB(40,40,40)
+        container.BorderSizePixel = 0
 
-		container.BorderSizePixel = 0
+        Instance.new("UICorner", container)
 
-		Instance.new("UICorner", container)
+        local nameBtn =
+            Instance.new("TextButton")
 
+        nameBtn.Parent =
+            container
 
-		--// NAME
+        nameBtn.Size =
+            UDim2.new(0.57,0,1,0)
 
-		local nameBtn =
-			Instance.new("TextButton")
+        nameBtn.Position =
+            UDim2.new(0.02,0,0,0)
 
-		nameBtn.Parent =
-			container
+        nameBtn.BackgroundTransparency = 1
 
-		nameBtn.Size =
-			UDim2.new(0.62,0,1,0)
+        nameBtn.TextXAlignment =
+            Enum.TextXAlignment.Left
 
-		nameBtn.Position =
-			UDim2.new(0.03,0,0,0)
+        nameBtn.Font =
+            Enum.Font.GothamBold
 
-		nameBtn.BackgroundTransparency = 1
+        nameBtn.TextSize = 11
 
-		nameBtn.TextXAlignment =
-			Enum.TextXAlignment.Left
+        nameBtn.Text =
+            tostring(data.pet)
+            .." | KG:"
+            ..tostring(data.minWeight or 0)
+            .." | LVL:"
+            ..tostring(data.minLevel or 0)
+            .." | M:"
+            ..(
+                data.mutation ~= ""
+                and data.mutation
+                or "Any"
+            )
 
-		nameBtn.Font =
-			Enum.Font.GothamBold
+        nameBtn.AutoButtonColor = false
 
-		nameBtn.TextSize = 12
+        if selectedFindSellerPet ==
+            data.pet then
 
+            nameBtn.TextColor3 =
+                Color3.fromRGB(0,255,100)
 
-		nameBtn.Text =
-			tostring(data.pet)
-			.." | KG:"
-			..tostring(
-				data.minWeight or 0
-			)
-			.." | LVL:"
-			..tostring(
-				data.minLevel or 0
-			)
-			.." | M:"
-			..(
-				data.mutation ~= nil
-				and data.mutation ~= ""
-				and data.mutation
-				or "Any"
-			)
-			.." | $"
-			..tostring(data.price)
+        else
 
+            nameBtn.TextColor3 =
+                Color3.new(1,1,1)
 
-		nameBtn.AutoButtonColor = false
+        end
 
+        nameBtn.Activated:Connect(function()
 
-		if selectedFindSellerPet ==
-			data.pet then
+            selectedFindSellerPet =
+                data.pet
 
-			nameBtn.TextColor3 =
-				Color3.fromRGB(
-					0,255,100
-				)
+            saveFindSellerTarget(
+                data.pet
+            )
 
-		else
+            info.Text =
+                "FindSeller : "
+                ..tostring(data.pet)
 
-			nameBtn.TextColor3 =
-				Color3.new(1,1,1)
+            refreshPetList()
 
-		end
+        end)
 
+        local pBox =
+            Instance.new("TextBox")
 
-		nameBtn.Activated:Connect(function()
+        pBox.Parent =
+            container
 
-			selectedFindSellerPet =
-				data.pet
+        pBox.Size =
+            UDim2.new(0.17,0,0.75,0)
 
-			saveFindSellerTarget(
-				data.pet
-			)
+        pBox.Position =
+            UDim2.new(0.60,0,0.125,0)
 
-			info.Text =
-				"FindSeller : "
-				..data.pet
+        pBox.Text =
+            tostring(data.price)
 
-			refreshPetList()
+        pBox.Font =
+            Enum.Font.GothamBold
 
-		end)
+        pBox.TextSize = 11
 
+        pBox.BackgroundColor3 =
+            Color3.fromRGB(55,55,55)
 
-		--// PRICE EDIT
+        pBox.TextColor3 =
+            Color3.fromRGB(0,255,100)
 
-		local pBox =
-			Instance.new("TextBox")
+        pBox.BorderSizePixel = 0
 
-		pBox.Parent =
-			container
+        Instance.new("UICorner", pBox)
 
-		pBox.Size =
-			UDim2.new(0.18,0,0.75,0)
+        pBox.FocusLost:Connect(function()
 
-		pBox.Position =
-			UDim2.new(0.65,0,0.125,0)
+            local num =
+                tonumber(pBox.Text)
 
-		pBox.Text =
-			tostring(data.price)
+            if not num then
 
-		pBox.Font =
-			Enum.Font.GothamBold
+                pBox.Text =
+                    tostring(data.price)
 
-		pBox.TextSize = 12
+                return
 
-		pBox.BackgroundColor3 =
-			Color3.fromRGB(55,55,55)
+            end
 
-		pBox.TextColor3 =
-			Color3.fromRGB(
-				0,255,100
-			)
+            data.price = num
 
-		pBox.BorderSizePixel = 0
+            saveSettings(
+                petDataList
+            )
 
-		Instance.new("UICorner", pBox)
+        end)
 
+        local removeBtn =
+            Instance.new("TextButton")
 
-		pBox.FocusLost:Connect(function()
+        removeBtn.Parent =
+            container
 
-			local num =
-				tonumber(pBox.Text)
+        removeBtn.Size =
+            UDim2.new(0,28,0,28)
 
-			if not num then
+        removeBtn.Position =
+            UDim2.new(1,-35,0.5,-14)
 
-				pBox.Text =
-					tostring(data.price)
+        removeBtn.Text = "-"
 
-				return
+        removeBtn.Font =
+            Enum.Font.GothamBold
 
-			end
+        removeBtn.TextSize = 18
 
-			data.price = num
+        removeBtn.BackgroundColor3 =
+            Color3.fromRGB(170,0,0)
 
-			saveSettings(
-				petDataList
-			)
+        removeBtn.TextColor3 =
+            Color3.new(1,1,1)
 
-		end)
+        removeBtn.BorderSizePixel = 0
 
+        Instance.new("UICorner", removeBtn)
 
-		--// REMOVE
+        removeBtn.Activated:Connect(function()
 
-		local removeBtn =
-			Instance.new("TextButton")
+            table.remove(
+                petDataList,
+                i
+            )
 
-		removeBtn.Parent =
-			container
+            saveSettings(
+                petDataList
+            )
 
-		removeBtn.Size =
-			UDim2.new(0,28,0,28)
+            if selectedFindSellerPet ==
+                data.pet then
 
-		removeBtn.Position =
-			UDim2.new(1,-35,0.5,-14)
+                selectedFindSellerPet = nil
 
-		removeBtn.Text = "-"
+                saveFindSellerTarget("")
 
-		removeBtn.Font =
-			Enum.Font.GothamBold
+            end
 
-		removeBtn.TextSize = 18
+            refreshPetList()
 
-		removeBtn.BackgroundColor3 =
-			Color3.fromRGB(
-				170,0,0
-			)
+        end)
 
-		removeBtn.TextColor3 =
-			Color3.new(1,1,1)
+    end
 
-		removeBtn.BorderSizePixel = 0
-
-		Instance.new("UICorner", removeBtn)
-
-
-		removeBtn.Activated:Connect(function()
-
-			table.remove(
-				petDataList,
-				i
-			)
-
-			saveSettings(
-				petDataList
-			)
-
-			if selectedFindSellerPet ==
-				data.pet then
-
-				selectedFindSellerPet = nil
-
-				saveFindSellerTarget("")
-
-			end
-
-			refreshPetList()
-
-		end)
-
-	end
-
-
-	updateCanvas()
+    updateCanvas()
 
 end
 
-
 refreshPetList()
 
-
 --//========================================================
---// CLEAR SEARCH RESULTS
+--// SEARCH RESULTS
 --//========================================================
 
 local function clearResults()
 
-	for _, v in ipairs(
-		resultFrame:GetChildren()
-	) do
+    for _, v in ipairs(resultFrame:GetChildren()) do
 
-		if v:IsA("TextButton") then
-			v:Destroy()
-		end
+        if v:IsA("TextButton") then
+            v:Destroy()
+        end
 
-	end
+    end
 
 end
-
-
---//========================================================
---// SEARCH
---//========================================================
 
 local function refreshSearch()
 
-	clearResults()
+    clearResults()
 
-	local text =
-		searchBox.Text:lower()
+    local text =
+        tostring(searchBox.Text or ""):lower()
 
-	if text == "" then
-		return
-	end
+    if text == "" then
+        return
+    end
 
+    --// EGG GROUP
 
-	--// EGG GROUP
+    for eggName in pairs(EggGroups) do
 
-	for eggName, _ in pairs(
-		EggGroups
-	) do
+        if string.find(
+            eggName:lower(),
+            text,
+            1,
+            true
+        ) then
 
-		if string.find(
-			eggName:lower(),
-			text,
-			1,
-			true
-		) then
+            local btn =
+                Instance.new("TextButton")
 
-			local btn =
-				Instance.new("TextButton")
+            btn.Parent =
+                resultFrame
 
-			btn.Parent =
-				resultFrame
+            btn.Size =
+                UDim2.new(1,-5,0,30)
 
-			btn.Size =
-				UDim2.new(1,-5,0,30)
+            btn.Text =
+                "[EGG] "
+                ..eggName
 
-			btn.Text =
-				"[EGG] "..eggName
+            btn.Font =
+                Enum.Font.GothamBold
 
-			btn.Font =
-				Enum.Font.GothamBold
+            btn.TextSize = 13
 
-			btn.TextSize = 14
+            btn.BackgroundColor3 =
+                Color3.fromRGB(80,60,20)
 
-			btn.BackgroundColor3 =
-				Color3.fromRGB(
-					80,60,20
-				)
+            btn.TextColor3 =
+                Color3.fromRGB(255,220,100)
 
-			btn.TextColor3 =
-				Color3.fromRGB(
-					255,220,100
-				)
+            btn.BorderSizePixel = 0
 
-			btn.BorderSizePixel = 0
+            Instance.new("UICorner", btn)
 
-			Instance.new("UICorner", btn)
+            btn.Activated:Connect(function()
 
+                selectedPet =
+                    eggName
 
-			btn.Activated:Connect(function()
+                searchBox.Text =
+                    eggName
 
-				selectedPet =
-					eggName
+                clearResults()
 
-				searchBox.Text =
-					eggName
+            end)
 
-				clearResults()
+        end
 
-			end)
+    end
 
-		end
+    --// PET LIST
 
-	end
+    if not PetList then
+        updateCanvas()
+        return
+    end
 
+    local count = 0
 
-	--// PET LIST
+    for petName in pairs(PetList) do
 
-	local count = 0
+        if string.find(
+            tostring(petName):lower(),
+            text,
+            1,
+            true
+        ) then
 
-	for petName, _ in pairs(
-		PetList
-	) do
+            count += 1
 
-		if string.find(
-			petName:lower(),
-			text,
-			1,
-			true
-		) then
+            if count > 70 then
+                break
+            end
 
-			count += 1
+            local btn =
+                Instance.new("TextButton")
 
-			if count > 70 then
-				break
-			end
+            btn.Parent =
+                resultFrame
 
+            btn.Size =
+                UDim2.new(1,-5,0,30)
 
-			local btn =
-				Instance.new("TextButton")
+            btn.Text =
+                tostring(petName)
 
-			btn.Parent =
-				resultFrame
+            btn.Font =
+                Enum.Font.Gotham
 
-			btn.Size =
-				UDim2.new(1,-5,0,30)
+            btn.TextSize = 13
 
-			btn.Text =
-				petName
+            btn.BackgroundColor3 =
+                Color3.fromRGB(45,45,45)
 
-			btn.Font =
-				Enum.Font.Gotham
+            btn.TextColor3 =
+                Color3.new(1,1,1)
 
-			btn.TextSize = 14
+            btn.BorderSizePixel = 0
 
-			btn.BackgroundColor3 =
-				Color3.fromRGB(
-					45,45,45
-				)
+            Instance.new("UICorner", btn)
 
-			btn.TextColor3 =
-				Color3.new(1,1,1)
+            btn.Activated:Connect(function()
 
-			btn.BorderSizePixel = 0
+                selectedPet =
+                    petName
 
-			Instance.new("UICorner", btn)
+                searchBox.Text =
+                    petName
 
+                clearResults()
 
-			btn.Activated:Connect(function()
+            end)
 
-				selectedPet =
-					petName
+        end
 
-				searchBox.Text =
-					petName
+    end
 
-				clearResults()
-
-			end)
-
-		end
-
-	end
-
-
-	updateCanvas()
+    updateCanvas()
 
 end
 
-
 searchBox:GetPropertyChangedSignal(
-	"Text"
+    "Text"
 ):Connect(refreshSearch)
-
 
 --//========================================================
 --// ADD PET
@@ -1352,97 +1404,83 @@ searchBox:GetPropertyChangedSignal(
 
 addBtn.Activated:Connect(function()
 
-	local pet =
-		selectedPet
-		or searchBox.Text
+    local pet =
+        selectedPet
+        or searchBox.Text
 
+    if not pet
+    or pet == "" then
 
-	local price =
-		tonumber(priceBox.Text)
+        info.Text =
+            "Input Pet"
 
+        return
 
-	if not pet or pet == "" then
+    end
 
-		info.Text =
-			"Input Pet"
+    local price =
+        tonumber(priceBox.Text)
 
-		return
+    if not price then
 
-	end
+        info.Text =
+            "Input Price"
 
+        return
 
-	if not price then
+    end
 
-		info.Text =
-			"Input Price"
+    local minWeight =
+        tonumber(minWeightBox.Text)
+        or 0
 
-		return
+    local minLevel =
+        tonumber(minLevelBox.Text)
+        or 0
 
-	end
+    local mutation =
+        tostring(mutationBox.Text or "")
 
+    table.insert(
+        petDataList,
+        {
 
---// EMPTY = 0
+            pet = pet,
 
-	local minWeight =
-		tonumber(
-			minWeightBox.Text
-		) or 0
+            price = price,
 
+            mutation = mutation,
 
-	local minLevel =
-		tonumber(
-			minLevelBox.Text
-		) or 0
+            minWeight = minWeight,
 
+            minLevel = minLevel
 
-	local mutation =
-		tostring(
-			mutationBox.Text or ""
-		)
+        }
+    )
 
+    saveSettings(
+        petDataList
+    )
 
-	table.insert(
-		petDataList,
-		{
+    refreshPetList()
 
-			pet = pet,
+    searchBox.Text = ""
 
-			price = price,
+    priceBox.Text = ""
 
-			mutation = mutation,
+    minWeightBox.Text = ""
 
-			minWeight =
-				minWeight,
+    minLevelBox.Text = ""
 
-			minLevel =
-				minLevel
+    mutationBox.Text = ""
 
-		}
-	)
+    selectedPet = nil
 
-
-	saveSettings(
-		petDataList
-	)
-
-
-	refreshPetList()
-
-
-	searchBox.Text = ""
-	priceBox.Text = ""
-	minWeightBox.Text = ""
-	minLevelBox.Text = ""
-	mutationBox.Text = ""
-
-	selectedPet = nil
-
-
-	info.Text =
-		"Added "..pet
+    info.Text =
+        "Added "
+        ..tostring(pet)
 
 end)
-
 
 --//========================================================
 --// FIND SELLER STATE
@@ -1450,292 +1488,325 @@ end)
 
 local teleportingSeller = false
 
-
 local function clearFindSellerState()
 
-	getgenv().FindSellerListingId = nil
-	getgenv().FindSellerPet = nil
+    getgenv().FindSellerListingId = nil
+    getgenv().FindSellerPet = nil
 
 end
-
 
 --//========================================================
 --// DIRECT FIND SELLER
---//========================================================
 --//
---// IMPORTANT:
 --// NO GUI CLICK
 --//
---// FindSellers:InvokeServer()
---// TeleportToListing:InvokeServer()
---//
+--// 1. GetDefaultItemData
+--// 2. FindSellers:InvokeServer
+--// 3. TeleportToListing:InvokeServer
 --//========================================================
 
-local function teleportToSeller(
-	selectedPet
-)
+local function teleportToSeller(targetPet)
 
-	if teleportingSeller then
-		return false
-	end
+    if teleportingSeller then
+        return false
+    end
 
+    teleportingSeller = true
 
-	teleportingSeller = true
+    local selected =
+        getFindSellerPet(targetPet)
 
+    if not selected
+    or selected == "" then
 
-	selectedPet =
-		getFindSellerPet(
-			selectedPet
-		)
+        teleportingSeller = false
 
+        return false
 
-	if not selectedPet
-	or selectedPet == "" then
+    end
 
-		teleportingSeller = false
+    info.Text =
+        "Finding seller: "
+        ..tostring(selected)
 
-		return false
+    --//====================================================
+    --// GET DEFAULT ITEM DATA
+    --//====================================================
 
-	end
+    if not RAPUtil then
 
+        info.Text =
+            "RAPUtil unavailable"
 
-	info.Text =
-		"Finding seller: "
-		..selectedPet
+        teleportingSeller = false
 
+        return false
 
-	--// GET ITEM DATA
+    end
 
-	local dataOK, itemData =
-		pcall(function()
+    local dataOK, itemData =
+        pcall(function()
 
-			return RAPUtil.GetDefaultItemData(
-				"Pet",
-				selectedPet
-			)
+            return RAPUtil.GetDefaultItemData(
+                "Pet",
+                selected
+            )
 
-		end)
+        end)
 
+    if not dataOK
+    or not itemData then
 
-	if not dataOK
-	or not itemData then
+        warn(
+            "[BUY LISTING] GetDefaultItemData failed:",
+            itemData
+        )
 
-		warn(
-			"GetDefaultItemData failed:",
-			itemData
-		)
+        info.Text =
+            "Item data error"
 
-		info.Text =
-			"Item data error"
+        teleportingSeller = false
 
-		teleportingSeller = false
+        return false
 
-		return false
+    end
 
-	end
+    --//====================================================
+    --// CHECK REMOTE
+    --//====================================================
 
+    if not FindSellers then
 
-	--// FIND SELLER
+        warn(
+            "[BUY LISTING] FindSellers remote not found"
+        )
 
-	info.Text =
-		"Invoking FindSeller..."
+        info.Text =
+            "FindSellers remote missing"
 
+        teleportingSeller = false
 
-	local ok, found, listingId =
-		pcall(function()
+        return false
 
-			return FindSellers:InvokeServer(
-				"Pet",
-				itemData
-			)
+    end
 
-		end)
+    if not TeleportToListing then
 
+        warn(
+            "[BUY LISTING] TeleportToListing remote not found"
+        )
 
-	print("==============================")
-	print("DIRECT FIND SELLER")
-	print("==============================")
-	print("OK:", ok)
-	print("FOUND:", found)
-	print("LISTING ID:", listingId)
+        info.Text =
+            "Teleport remote missing"
 
+        teleportingSeller = false
 
-	if not ok then
+        return false
 
-		warn(
-			"FindSellers error:",
-			found
-		)
+    end
 
-		info.Text =
-			"FindSeller error"
+    --//====================================================
+    --// DIRECT FIND SELLER
+    --//====================================================
 
-		teleportingSeller = false
+    info.Text =
+        "Invoking FindSeller..."
 
-		return false
+    local ok, found, listingId =
+        pcall(function()
 
-	end
+            return FindSellers:InvokeServer(
+                "Pet",
+                itemData
+            )
 
+        end)
 
-	if not found
-	or not listingId then
+    print(
+        "================================"
+    )
 
-		info.Text =
-			"Seller not found: "
-			..selectedPet
+    print(
+        "DIRECT FIND SELLER"
+    )
 
-		teleportingSeller = false
+    print(
+        "Pet:",
+        selected
+    )
 
-		return false
+    print(
+        "OK:",
+        ok
+    )
 
-	end
+    print(
+        "FOUND:",
+        found
+    )
 
+    print(
+        "LISTING ID:",
+        listingId
+    )
 
-	--// SAVE BEFORE TELEPORT
+    print(
+        "================================"
+    )
 
-	getgenv().FindSellerListingId =
-		listingId
+    if not ok then
 
-	getgenv().FindSellerPet =
-		selectedPet
+        warn(
+            "[BUY LISTING] FindSellers error:",
+            found
+        )
 
+        info.Text =
+            "FindSeller error"
 
-	--// DIRECT TELEPORT
+        teleportingSeller = false
 
-	info.Text =
-		"Teleporting seller..."
+        return false
 
+    end
 
-	local tpOK, tpResult =
-		pcall(function()
+    if not found
+    or not listingId then
 
-			return TeleportToListing:InvokeServer(
-				listingId,
-				true
-			)
+        info.Text =
+            "Seller not found: "
+            ..tostring(selected)
 
-		end)
+        teleportingSeller = false
 
+        return false
 
-	print("==============================")
-	print("TELEPORT TO LISTING")
-	print("==============================")
-	print("OK:", tpOK)
-	print("RESULT:", tpResult)
+    end
 
+    --//====================================================
+    --// SAVE STATE
+    --//====================================================
 
-	if not tpOK then
+    getgenv().FindSellerListingId =
+        listingId
 
-		warn(
-			"TeleportToListing error:",
-			tpResult
-		)
+    getgenv().FindSellerPet =
+        selected
 
-		info.Text =
-			"Teleport failed"
+    --//====================================================
+    --// DIRECT TELEPORT
+    --//====================================================
 
-		clearFindSellerState()
+    info.Text =
+        "Teleporting seller..."
 
-		teleportingSeller = false
+    local tpOK, tpResult =
+        pcall(function()
 
-		return false
+            return TeleportToListing:InvokeServer(
+                listingId,
+                true
+            )
 
-	end
+        end)
 
+    print(
+        "================================"
+    )
 
-	info.Text =
-		"Seller found: "
-		..selectedPet
+    print(
+        "TELEPORT TO LISTING"
+    )
 
+    print(
+        "OK:",
+        tpOK
+    )
 
-	teleportingSeller = false
+    print(
+        "RESULT:",
+        tpResult
+    )
 
-	return true
+    print(
+        "================================"
+    )
+
+    if not tpOK then
+
+        warn(
+            "[BUY LISTING] TeleportToListing error:",
+            tpResult
+        )
+
+        info.Text =
+            "Teleport failed"
+
+        clearFindSellerState()
+
+        teleportingSeller = false
+
+        return false
+
+    end
+
+    info.Text =
+        "Seller found: "
+        ..tostring(selected)
+
+    teleportingSeller = false
+
+    return true
 
 end
 
-
 --//========================================================
---// READ PENDING FIND SELLER
---//========================================================
-
-task.spawn(function()
-
-	local pendingListing =
-		getgenv().FindSellerListingId
-
-
-	if not pendingListing then
-		return
-	end
-
-
-	task.wait(5)
-
-
-	clearFindSellerState()
-
-end)
-
-
---//========================================================
---// BUY STATE
+--// MATCHED LISTINGS
 --//========================================================
 
 local buying = false
 
 local matchedListings = {}
 
-
 --//========================================================
---// MATCH ITEM
+--// MATCH PET
 --//========================================================
 
 local function isPetMatch(
-	itemName,
-	wantedPet
+    itemName,
+    wantedPet
 )
 
-	local normalName =
-		itemName:lower()
+    local normalName =
+        tostring(itemName or ""):lower()
 
-	local target =
-		tostring(
-			wantedPet or ""
-		):lower()
+    local target =
+        tostring(wantedPet or ""):lower()
 
+    if normalName == target then
+        return true
+    end
 
-	--// NORMAL
+    if EggGroups[wantedPet] then
 
-	if normalName == target then
-		return true
-	end
+        for _, eggPet in ipairs(
+            EggGroups[wantedPet]
+        ) do
 
+            if normalName ==
+                tostring(eggPet):lower() then
 
-	--// EGG GROUP
+                return true
 
-	if EggGroups[wantedPet] then
+            end
 
-		for _, eggPet in ipairs(
-			EggGroups[wantedPet]
-		) do
+        end
 
-			if normalName ==
-				eggPet:lower() then
+    end
 
-				return true
-
-			end
-
-		end
-
-	end
-
-
-	return false
+    return false
 
 end
-
 
 --//========================================================
 --// SCAN LISTINGS
@@ -1743,661 +1814,622 @@ end
 
 local function scanListings()
 
-	table.clear(
-		matchedListings
-	)
+    table.clear(
+        matchedListings
+    )
 
+    info.Text =
+        "Scanning listings..."
 
-	info.Text =
-		"Scanning listings..."
+    if not BoothsReplication then
 
+        info.Text =
+            "Booths module unavailable"
 
-	local ok, data =
-		pcall(function()
+        return 0
 
-			return BoothsReplication:GetDataAsync()
+    end
 
-		end)
+    local ok, data =
+        pcall(function()
 
+            return BoothsReplication:GetDataAsync()
 
-	if not ok
-	or not data then
+        end)
 
-		info.Text =
-			"Booths data unavailable"
+    if not ok
+    or not data then
 
-		return 0
+        info.Text =
+            "Booths data unavailable"
 
-	end
+        warn(
+            "[BUY LISTING] Booth data error:",
+            data
+        )
 
+        return 0
 
-	for _, booth in pairs(
-		data.Booths or {}
-	) do
+    end
 
+    for _, booth in pairs(
+        data.Booths or {}
+    ) do
 
-		local ownerId =
-			booth.Owner
+        local ownerId =
+            booth.Owner
 
+        local pData =
+            ownerId
+            and data.Players
+            and data.Players[ownerId]
 
-		local pData =
-			ownerId
-			and data.Players
-			and data.Players[ownerId]
+        if pData then
 
+            for uuid, listing in pairs(
+                pData.Listings or {}
+            ) do
 
-		if pData then
+                local item =
+                    pData.Items
+                    and pData.Items[
+                        listing.ItemId
+                    ]
 
+                if item then
 
-			for uuid, listing in pairs(
-				pData.Listings or {}
-			) do
+                    local rawName =
+                        item.Name
+                        or item.PetType
+                        or ""
 
+                    local nameOK, nameResult =
+                        pcall(function()
 
-				local item =
-					pData.Items
-					and pData.Items[
-						listing.ItemId
-					]
+                            return ItemNameFinder(
+                                rawName,
+                                listing.ItemType
+                            )
 
+                        end)
 
-				if item then
+                    local name =
+                        nameOK
+                        and tostring(nameResult or "")
+                        or tostring(rawName)
 
+                    local itemWeight =
+                        getBaseWeight(item)
 
-					local rawName =
-						item.Name
-						or item.PetType
-						or ""
+                    local itemLevel =
+                        getLevel(item)
 
+                    local itemMutation =
+                        getMutationType(item)
 
-					local name =
-						ItemNameFinder(
-							rawName,
-							listing.ItemType
-						)
+                    for _, wanted in ipairs(
+                        petDataList
+                    ) do
 
+                        if type(wanted) == "table" then
 
-					name =
-						tostring(name or "")
+                            local matched =
+                                isPetMatch(
+                                    name,
+                                    wanted.pet
+                                )
 
+                            if matched then
 
-					--// ITEM STATS
+                                local minWeight =
+                                    tonumber(
+                                        wanted.minWeight
+                                    ) or 0
 
-					local itemWeight =
-						getBaseWeight(item)
+                                local minLevel =
+                                    tonumber(
+                                        wanted.minLevel
+                                    ) or 0
 
+                                local wantedPrice =
+                                    tonumber(
+                                        wanted.price
+                                    ) or math.huge
+
+                                local wantedMutation =
+                                    tostring(
+                                        wanted.mutation
+                                        or ""
+                                    ):lower()
+
+                                local actualMutation =
+                                    tostring(
+                                        itemMutation
+                                        or ""
+                                    ):lower()
+
+                                local mutationMatched =
+                                    (
+                                        wantedMutation == ""
+                                        or wantedMutation == "any"
+                                        or actualMutation ==
+                                            wantedMutation
+                                    )
+
+                                local price =
+                                    tonumber(
+                                        listing.Price
+                                    ) or math.huge
 
-					local itemLevel =
-						getLevel(item)
+                                if price <= wantedPrice
+                                and itemWeight >= minWeight
+                                and itemLevel >= minLevel
+                                and mutationMatched then
 
+                                    local owner
 
-					local itemMutation =
-						getMutationType(item)
+                                    pcall(function()
 
+                                        owner =
+                                            TradeBoothsData.getPlayerById(
+                                                ownerId
+                                            )
 
-					--// CHECK EVERY WANTED
+                                    end)
 
-					for _, wanted in ipairs(
-						petDataList
-					) do
+                                    if owner then
 
+                                        table.insert(
+                                            matchedListings,
+                                            {
 
-						--// PET MATCH
+                                                owner =
+                                                    owner,
 
-						local matched =
-							isPetMatch(
-								name,
-								wanted.pet
-							)
+                                                uuid =
+                                                    uuid,
 
+                                                name =
+                                                    name,
 
-						if matched then
+                                                price =
+                                                    price,
 
+                                                weight =
+                                                    itemWeight,
 
-							--//================================================
-							--// IMPORTANT:
-							--// USE SAVED SETTING PER LISTING
-							--// NOT GLOBAL TEXTBOX
-							--//================================================
+                                                level =
+                                                    itemLevel,
 
-							local minWeight =
-								tonumber(
-									wanted.minWeight
-								) or 0
+                                                mutation =
+                                                    itemMutation,
 
+                                                wanted =
+                                                    wanted
 
-							local minLevel =
-								tonumber(
-									wanted.minLevel
-								) or 0
+                                            }
+                                        )
 
+                                        print(
+                                            "================================"
+                                        )
 
-							local wantedPrice =
-								tonumber(
-									wanted.price
-								) or math.huge
+                                        print(
+                                            "MATCH FOUND"
+                                        )
 
+                                        print(
+                                            "Pet:",
+                                            name
+                                        )
 
-							--// MUTATION
+                                        print(
+                                            "Price:",
+                                            price
+                                        )
 
-							local wantedMutation =
-								tostring(
-									wanted.mutation
-									or ""
-								):lower()
+                                        print(
+                                            "Weight:",
+                                            itemWeight
+                                        )
 
+                                        print(
+                                            "Level:",
+                                            itemLevel
+                                        )
 
-							local actualMutation =
-								tostring(
-									itemMutation
-									or ""
-								):lower()
+                                        print(
+                                            "Mutation:",
+                                            itemMutation
+                                        )
 
+                                        print(
+                                            "Target:",
+                                            wanted.pet
+                                        )
 
-							local mutationMatched =
-								(
-									wantedMutation == ""
-									or wantedMutation == "any"
-									or actualMutation ==
-										wantedMutation
-								)
+                                        print(
+                                            "================================"
+                                        )
 
+                                        break
 
-							--// PRICE
+                                    end
 
-							local price =
-								tonumber(
-									listing.Price
-								) or math.huge
+                                end
 
+                            end
 
-							--// FINAL MATCH
+                        end
 
-							if price <= wantedPrice
-							and itemWeight >= minWeight
-							and itemLevel >= minLevel
-							and mutationMatched then
+                    end
 
+                end
 
-								local owner =
-									TradeBoothsData.getPlayerById(
-										ownerId
-									)
+            end
 
+        end
 
-								if owner then
+    end
 
+    info.Text =
+        "Found "
+        ..tostring(#matchedListings)
+        .." listing(s)"
 
-									table.insert(
-										matchedListings,
-										{
-
-											owner =
-												owner,
-
-											uuid =
-												uuid,
-
-											name =
-												name,
-
-											price =
-												price,
-
-											weight =
-												itemWeight,
-
-											level =
-												itemLevel,
-
-											mutation =
-												itemMutation,
-
-											wanted =
-												wanted
-
-										}
-									)
-
-
-									print(
-										"================================"
-									)
-
-									print(
-										"MATCH FOUND"
-									)
-
-									print(
-										"Pet:",
-										name
-									)
-
-									print(
-										"Price:",
-										price
-									)
-
-									print(
-										"Weight:",
-										itemWeight
-									)
-
-									print(
-										"Level:",
-										itemLevel
-									)
-
-									print(
-										"Mutation:",
-										itemMutation
-									)
-
-									print(
-										"Target:",
-										wanted.pet
-									)
-
-
-									--// ONE LISTING
-									--// SHOULD NOT MATCH
-									--// SAME WANTED AGAIN
-
-									break
-
-								end
-
-							end
-
-						end
-
-					end
-
-				end
-
-			end
-
-		end
-
-	end
-
-
-	info.Text =
-		"Found "
-		..#matchedListings
-		.." listing(s)"
-
-
-	return #matchedListings
+    return #matchedListings
 
 end
 
-
 --//========================================================
---// BUY ONE LISTING
+--// BUY ONE
 --//========================================================
 
 local function buyListing(
-	listingData
+    listingData
 )
 
-	if not listingData then
-		return false
-	end
+    if not listingData then
+        return false
+    end
 
+    if not TradeEvents then
+        return false
+    end
 
-	local success, result =
-		pcall(function()
+    local success, result =
+        pcall(function()
 
-			return TradeEvents
-				.Booths
-				.BuyListing
-				:InvokeServer(
-					listingData.owner,
-					listingData.uuid
-				)
+            return TradeEvents
+                .Booths
+                .BuyListing
+                :InvokeServer(
+                    listingData.owner,
+                    listingData.uuid
+                )
 
-		end)
+        end)
 
+    print(
+        "=============================="
+    )
 
-	print("==============================")
-	print("BUY LISTING")
-	print("==============================")
-	print("Pet:", listingData.name)
-	print("Price:", listingData.price)
-	print("UUID:", listingData.uuid)
-	print("SUCCESS:", success)
-	print("RESULT:", result)
+    print(
+        "BUY LISTING"
+    )
 
+    print(
+        "Pet:",
+        listingData.name
+    )
 
-	return success
+    print(
+        "Price:",
+        listingData.price
+    )
+
+    print(
+        "UUID:",
+        listingData.uuid
+    )
+
+    print(
+        "SUCCESS:",
+        success
+    )
+
+    print(
+        "RESULT:",
+        result
+    )
+
+    print(
+        "=============================="
+    )
+
+    return success
 
 end
-
 
 --//========================================================
 --// BUY ALL MATCH
 --//========================================================
---//
---// IMPORTANT:
---// NO FIND SELLER UNTIL SCAN HAS
---// COMPLETELY FINISHED AND FOUND ZERO MATCH.
---//
---//========================================================
 
 local function buyAllMatch()
 
-	if buying then
-		return false
-	end
+    if buying then
+        return false
+    end
 
+    buying = true
 
-	buying = true
+    --//====================================================
+    --// SCAN
+    --//====================================================
 
+    local count =
+        scanListings()
 
-	--//======================================================
-	--// FIRST SCAN
-	--//======================================================
+    --//====================================================
+    --// MATCH FOUND
+    --//
+    --// BUY ONLY
+    --// NO FIND SELLER
+    --//====================================================
 
-	local count =
-		scanListings()
+    if count > 0 then
 
+        for i, listingData in ipairs(
+            matchedListings
+        ) do
 
-	--//======================================================
-	--// FOUND LISTING
-	--//
-	--// BUY FIRST.
-	--// DO NOT FIND SELLER.
-	--//======================================================
+            info.Text =
+                ("BUYING %d/%d | %s")
+                :format(
+                    i,
+                    count,
+                    tostring(
+                        listingData.name
+                    )
+                )
 
-	if count > 0 then
+            local bought =
+                buyListing(
+                    listingData
+                )
 
+            if bought then
 
-		for i, listingData in ipairs(
-			matchedListings
-		) do
+                info.Text =
+                    ("BOUGHT %s | $%s")
+                    :format(
+                        tostring(
+                            listingData.name
+                        ),
+                        tostring(
+                            listingData.price
+                        )
+                    )
 
+            else
 
-			info.Text =
-				("BUYING %d/%d | %s")
-				:format(
-					i,
-					count,
-					listingData.name
-				)
+                info.Text =
+                    ("BUY FAILED | %s")
+                    :format(
+                        tostring(
+                            listingData.name
+                        )
+                    )
 
+            end
 
-			local bought =
-				buyListing(
-					listingData
-				)
+            task.wait(2)
 
+        end
 
-			if bought then
+        buying = false
 
-				info.Text =
-					("BOUGHT %s | $%s")
-					:format(
-						listingData.name,
-						tostring(
-							listingData.price
-						)
-					)
+        return true
 
-			else
+    end
 
-				info.Text =
-					("BUY FAILED | %s")
-					:format(
-						listingData.name
-					)
+    --//====================================================
+    --// ZERO MATCH
+    --//
+    --// ONLY HERE FIND SELLER
+    --//====================================================
 
-			end
+    info.Text =
+        "No matching listing"
 
+    if selectedFindSellerPet
+    and selectedFindSellerPet ~= "" then
 
-			--// WAIT SERVER UPDATE
+        task.wait(0.5)
 
-			task.wait(2)
+        info.Text =
+            "No listing - Find Seller"
 
-		end
+        teleportToSeller(
+            selectedFindSellerPet
+        )
 
+    else
 
-		--//==================================================
-		--// IMPORTANT:
-		--// AFTER BUY, JUST RETURN.
-		// AUTO LOOP WILL SCAN AGAIN.
-		// NO FIND SELLER HERE.
-		--//==================================================
+        info.Text =
+            "No listing / No FindSeller target"
 
-		buying = false
+    end
 
-		return true
+    buying = false
 
-	end
-
-
-	--//======================================================
-	--// ZERO MATCH
-	--//
-	--// ONLY NOW FIND SELLER
-	--//======================================================
-
-	info.Text =
-		"No matching listing"
-
-
-	if selectedFindSellerPet
-	and selectedFindSellerPet ~= "" then
-
-
-		task.wait(0.5)
-
-
-		info.Text =
-			"No listing - Find Seller"
-
-
-		teleportToSeller(
-			selectedFindSellerPet
-		)
-
-	else
-
-		info.Text =
-			"No listing / No FindSeller target"
-
-	end
-
-
-	buying = false
-
-	return false
+    return false
 
 end
 
-
 --//========================================================
---// BUTTONS
+--// BUTTON BUY
 --//========================================================
 
 local buyBtn =
-	Instance.new("TextButton")
-
+    Instance.new("TextButton")
 
 buyBtn.Parent = main
 
 buyBtn.Size =
-	UDim2.new(0.42,0,0,45)
+    UDim2.new(0.42,0,0,45)
 
 buyBtn.Position =
-	UDim2.new(0.05,0,1,-55)
+    UDim2.new(0.05,0,1,-55)
 
 buyBtn.Text =
-	"BUY ALL"
+    "BUY ALL"
 
 buyBtn.Font =
-	Enum.Font.GothamBold
+    Enum.Font.GothamBold
 
 buyBtn.TextSize = 18
 
 buyBtn.BackgroundColor3 =
-	Color3.fromRGB(0,170,90)
+    Color3.fromRGB(0,170,90)
 
 buyBtn.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
 
 buyBtn.BorderSizePixel = 0
 
 Instance.new("UICorner", buyBtn)
 
+--//========================================================
+--// AUTO BUTTON
+--//========================================================
 
 local autoBtn =
-	Instance.new("TextButton")
-
+    Instance.new("TextButton")
 
 autoBtn.Parent = main
 
 autoBtn.Size =
-	UDim2.new(0.42,0,0,45)
+    UDim2.new(0.42,0,0,45)
 
 autoBtn.Position =
-	UDim2.new(0.53,0,1,-55)
+    UDim2.new(0.53,0,1,-55)
 
 autoBtn.Font =
-	Enum.Font.GothamBold
+    Enum.Font.GothamBold
 
 autoBtn.TextSize = 18
 
 autoBtn.TextColor3 =
-	Color3.new(1,1,1)
+    Color3.new(1,1,1)
 
 autoBtn.BorderSizePixel = 0
 
 Instance.new("UICorner", autoBtn)
-
 
 --//========================================================
 --// AUTO BUY
 --//========================================================
 
 local autoBuying =
-	loadAutoBuyStatus()
-
+    loadAutoBuyStatus()
 
 local autoLoopRunning = false
 
-
 local function refreshAutoButton()
 
-	autoBtn.Text =
-		autoBuying
-		and "AUTO ON"
-		or "AUTO OFF"
+    if autoBuying then
 
+        autoBtn.Text =
+            "AUTO ON"
 
-	autoBtn.BackgroundColor3 =
-		autoBuying
+        autoBtn.BackgroundColor3 =
+            Color3.fromRGB(0,170,90)
 
-		and Color3.fromRGB(
-			0,170,90
-		)
+    else
 
-		or Color3.fromRGB(
-			170,0,0
-		)
+        autoBtn.Text =
+            "AUTO OFF"
+
+        autoBtn.BackgroundColor3 =
+            Color3.fromRGB(170,0,0)
+
+    end
 
 end
 
-
 refreshAutoButton()
 
-
 --//========================================================
---// SINGLE AUTO LOOP
+--// AUTO LOOP
 --//========================================================
 
 local function startAutoLoop()
 
-	if autoLoopRunning then
-		return
-	end
+    if autoLoopRunning then
+        return
+    end
 
+    autoLoopRunning = true
 
-	autoLoopRunning = true
+    task.spawn(function()
 
+        while autoBuying do
 
-	task.spawn(function()
+            if not buying then
 
+                local ok, err =
+                    pcall(function()
 
-		while autoBuying do
+                        buyAllMatch()
 
+                    end)
 
-			--// PROTECTION
+                if not ok then
 
-			if not buying then
+                    warn(
+                        "[BUY LISTING] AUTO ERROR:",
+                        err
+                    )
 
-				local ok, err =
-					pcall(function()
+                    buying = false
 
-						buyAllMatch()
+                end
 
-					end)
+            end
 
+            task.wait(3)
 
-				if not ok then
+        end
 
-					warn(
-						"AUTO BUY ERROR:",
-						err
-					)
+        autoLoopRunning = false
 
-					buying = false
-
-				end
-
-			end
-
-
-			--// IMPORTANT:
-			--// SHORT WAIT
-			--// BUT NOT ZERO
-			--// TO ALLOW SERVER DATA UPDATE
-
-			task.wait(3)
-
-		end
-
-
-		autoLoopRunning = false
-
-	end)
+    end)
 
 end
 
+--//========================================================
+--// AUTO BUTTON
+--//========================================================
 
 autoBtn.Activated:Connect(function()
 
+    autoBuying =
+        not autoBuying
 
-	autoBuying =
-		not autoBuying
+    saveAutoBuyStatus(
+        autoBuying
+    )
 
+    refreshAutoButton()
 
-	saveAutoBuyStatus(
-		autoBuying
-	)
+    if autoBuying then
 
+        startAutoLoop()
 
-	refreshAutoButton()
-
-
-	if autoBuying then
-
-		startAutoLoop()
-
-	end
+    end
 
 end)
-
 
 --//========================================================
 --// MANUAL BUY
@@ -2405,45 +2437,86 @@ end)
 
 buyBtn.Activated:Connect(function()
 
-	if buying then
-		return
-	end
+    if buying then
+        return
+    end
 
+    task.spawn(function()
 
-	task.spawn(function()
+        local ok, err =
+            pcall(function()
 
-		pcall(
-			buyAllMatch
-		)
+                buyAllMatch()
 
-	end)
+            end)
+
+        if not ok then
+
+            warn(
+                "[BUY LISTING] MANUAL ERROR:",
+                err
+            )
+
+            buying = false
+
+        end
+
+    end)
 
 end)
 
-
 --//========================================================
---// START SAVED AUTO MODE
+--// START SAVED AUTO
 --//========================================================
 
 if autoBuying then
-
-	startAutoLoop()
-
+    startAutoLoop()
 end
-
 
 --//========================================================
 --// FINAL
 --//========================================================
 
-print("==========================================")
-print("BUY LISTING SYSTEM LOADED")
-print("==========================================")
-print("Direct Find Seller : ENABLED")
-print("GUI Find Seller    : DISABLED")
-print("Per Listing Filter : ENABLED")
-print("Empty Min KG       : 0")
-print("Empty Min Level    : 0")
-print("Buy Priority       : ENABLED")
-print("Single Auto Loop   : ENABLED")
-print("==========================================")
+print(
+    "=========================================="
+)
+
+print(
+    "BUY LISTING SYSTEM LOADED"
+)
+
+print(
+    "=========================================="
+)
+
+print(
+    "Direct Find Seller : ENABLED"
+)
+
+print(
+    "GUI Find Seller    : DISABLED"
+)
+
+print(
+    "Per Listing Filter : ENABLED"
+)
+
+print(
+    "Empty Min KG       : 0"
+)
+
+print(
+    "Empty Min Level    : 0"
+)
+
+print(
+    "Buy Priority       : ENABLED"
+)
+
+print(
+    "Single Auto Loop   : ENABLED"
+)
+
+print(
+    "=========================================="
+)
