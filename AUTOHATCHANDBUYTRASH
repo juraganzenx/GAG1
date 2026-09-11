@@ -1,9 +1,6 @@
 --========================================================
 -- WORLD ROUTER + SIMPLE STATUS GUI
 --========================================================
--- TRAVEL TO TRADE WORLD:
---   GameEvents.TradeWorld.TravelToTradeWorld:FireServer()
---
 -- MAIN WORLD:
 --   Springtide Egg > 0 -> AUTOHATCH
 --   Springtide Egg = 0 -> TRAVEL TO TRADE WORLD
@@ -12,8 +9,16 @@
 --   Springbee + Jerboa + Nyala < 300 -> BUYTRASH
 --   Total >= 300 -> KICK
 --
--- PERYTON / EGG CHECK:
+-- CHECK:
 --   Setiap 10 detik
+--
+-- TRAVEL:
+--   GameEvents.TradeWorld.TravelToTradeWorld:FireServer()
+--
+-- IMPORTANT:
+--   Tidak memakai TeleportService
+--   Tidak ada TRAVEL FAILED karena masih Main World
+--   Selama Traveling = true, CheckMainWorld tidak dijalankan
 --========================================================
 
 
@@ -77,6 +82,9 @@ local BuyTrashStarted =
 local Traveling =
     false
 
+local TravelRequestSent =
+    false
+
 
 --========================================================
 -- REMOTES
@@ -94,14 +102,14 @@ local TradeWorldFolder =
     )
 
 
-local TravelToTradeWorld =
+local TravelRemote =
     TradeWorldFolder:WaitForChild(
         "TravelToTradeWorld"
     )
 
 
 --========================================================
--- GUI
+-- GUI CLEANUP
 --========================================================
 
 pcall(function()
@@ -117,6 +125,10 @@ pcall(function()
 
 end)
 
+
+--========================================================
+-- GUI
+--========================================================
 
 local ScreenGui =
     Instance.new("ScreenGui")
@@ -200,6 +212,10 @@ Stroke.Parent =
     MainFrame
 
 
+--========================================================
+-- TITLE
+--========================================================
+
 local Title =
     Instance.new("TextLabel")
 
@@ -247,6 +263,10 @@ Title.TextXAlignment =
 Title.Parent =
     MainFrame
 
+
+--========================================================
+-- WORLD LABEL
+--========================================================
 
 local WorldLabel =
     Instance.new("TextLabel")
@@ -296,6 +316,10 @@ WorldLabel.Parent =
     MainFrame
 
 
+--========================================================
+-- COUNT LABEL
+--========================================================
+
 local CountLabel =
     Instance.new("TextLabel")
 
@@ -344,6 +368,10 @@ CountLabel.Parent =
     MainFrame
 
 
+--========================================================
+-- STATE LABEL
+--========================================================
+
 local StateLabel =
     Instance.new("TextLabel")
 
@@ -391,6 +419,10 @@ StateLabel.TextXAlignment =
 StateLabel.Parent =
     MainFrame
 
+
+--========================================================
+-- CHECK LABEL
+--========================================================
 
 local CheckLabel =
     Instance.new("TextLabel")
@@ -478,7 +510,32 @@ end
 
 
 --========================================================
--- EXECUTE REMOTE SCRIPT
+-- GET WORLD
+--========================================================
+
+local function GetWorld()
+
+    if game.PlaceId == MAIN_WORLD then
+
+        return "MAIN WORLD"
+
+    end
+
+
+    if game.PlaceId == TRADE_WORLD then
+
+        return "TRADE WORLD"
+
+    end
+
+
+    return "UNKNOWN"
+
+end
+
+
+--========================================================
+-- EXECUTE SCRIPT
 --========================================================
 
 local function ExecuteScript(
@@ -515,8 +572,8 @@ local function ExecuteScript(
     if not Success then
 
         warn(
-            "EXECUTE ERROR:",
-            Result
+            "[EXECUTE ERROR]",
+            tostring(Result)
         )
 
         return false
@@ -616,7 +673,7 @@ local TARGET_PETS = {
 
 
 --========================================================
--- DETECT TARGET PET
+-- GET PET TYPE
 --========================================================
 
 local function GetPetType(
@@ -624,18 +681,15 @@ local function GetPetType(
 )
 
     if not Tool:IsA("Tool") then
+
         return nil
+
     end
 
 
     for PetName in pairs(
         TARGET_PETS
     ) do
-
-        -- Example:
-        -- Jerboa [1.83 KG] [Age 1]
-        -- Springbee [2.20 KG] [Age 3]
-        -- Nyala [1.50 KG] [Age 1]
 
         if string.match(
             Tool.Name,
@@ -746,54 +800,70 @@ local function CountTargetPets()
 end
 
 
-
 --========================================================
 -- TRAVEL TO TRADE WORLD
 --========================================================
 --
--- Menggunakan:
+-- IMPORTANT:
 --
--- GameEvents
---   └── TradeWorld
---        └── TravelToTradeWorld
+-- FireServer berhasil:
+--     Traveling = true
 --
--- Tidak memakai TeleportService:Teleport()
+-- Selama masih Main World:
+--     tetap TRAVELING TO TRADE
 --
--- PENTING:
--- Tidak menganggap masih di Main World sebagai
--- "TRAVEL FAILED".
+-- Tidak ada timeout.
+-- Tidak ada TRAVEL FAILED.
 --
--- Setelah FireServer(), status tetap:
---     TRAVELING TO TRADE
---
--- Sampai PlaceId benar-benar berubah.
+-- Hanya FireServer error yang dianggap error.
 --========================================================
 
 local function TravelToTradeWorld()
 
-    if Traveling then
-        return
-    end
-
-
     --====================================================
-    -- SUDAH DI TRADE WORLD
+    -- ALREADY TRADE WORLD
     --====================================================
 
     if game.PlaceId == TRADE_WORLD then
 
         Traveling = false
+        TravelRequestSent = false
 
-        return
+        return true
 
     end
 
 
     --====================================================
-    -- LOCK TRAVEL
+    -- ALREADY TRAVELING
+    --====================================================
+
+    if Traveling then
+
+        return true
+
+    end
+
+
+    --====================================================
+    -- ONLY MAIN WORLD
+    --====================================================
+
+    if game.PlaceId ~= MAIN_WORLD then
+
+        return false
+
+    end
+
+
+    --====================================================
+    -- LOCK
     --====================================================
 
     Traveling = true
+
+
+    TravelRequestSent = false
 
 
     SetStatus(
@@ -804,23 +874,24 @@ local function TravelToTradeWorld()
 
 
     warn(
-        "================================"
+        "========================================"
     )
 
     warn(
-        "SPRINGTIDE EGG = 0"
+        "[TRAVEL] MAIN WORLD"
     )
 
     warn(
-        "TRAVEL TO TRADE WORLD"
+        "[TRAVEL] Sending TravelToTradeWorld"
     )
 
     warn(
-        "METHOD: TravelToTradeWorld:FireServer()"
+        "[TRAVEL] Remote:",
+        TravelRemote:GetFullName()
     )
 
     warn(
-        "================================"
+        "========================================"
     )
 
 
@@ -831,8 +902,7 @@ local function TravelToTradeWorld()
     local Success, ErrorMessage =
         pcall(function()
 
-            TravelToTradeWorld:
-                FireServer()
+            TravelRemote:FireServer()
 
         end)
 
@@ -844,12 +914,15 @@ local function TravelToTradeWorld()
     if not Success then
 
         warn(
-            "[TRADE TRAVEL] Remote error:",
+            "[TRAVEL] FireServer ERROR:",
             tostring(ErrorMessage)
         )
 
-        -- Hanya error FireServer yang dianggap gagal.
+
         Traveling = false
+
+        TravelRequestSent = false
+
 
         SetStatus(
             "MAIN WORLD",
@@ -857,17 +930,25 @@ local function TravelToTradeWorld()
             "TRAVEL ERROR"
         )
 
-        return
+
+        return false
 
     end
 
 
     --====================================================
-    -- REMOTE BERHASIL DIKIRIM
+    -- REQUEST SENT
     --====================================================
 
+    TravelRequestSent = true
+
+
     warn(
-        "[TRADE] Travel request sent."
+        "[TRAVEL] Request sent."
+    )
+
+    warn(
+        "[TRAVEL] Waiting for PlaceId..."
     )
 
 
@@ -879,15 +960,7 @@ local function TravelToTradeWorld()
 
 
     --====================================================
-    -- MONITOR PERPINDAHAN
-    --====================================================
-    --
-    -- Tidak ada timeout.
-    -- Tidak ada "TRAVEL FAILED" hanya karena masih
-    -- berada di Main World.
-    --
-    -- Monitor berhenti sendiri ketika PlaceId
-    -- sudah berubah menjadi Trade World.
+    -- MONITOR THREAD
     --====================================================
 
     task.spawn(function()
@@ -897,28 +970,56 @@ local function TravelToTradeWorld()
             task.wait(1)
 
 
+            local PlaceId =
+                game.PlaceId
+
+
             --============================================
-            -- SUDAH SAMPAI TRADE WORLD
+            -- ARRIVED
             --============================================
 
-            if game.PlaceId == TRADE_WORLD then
+            if PlaceId == TRADE_WORLD then
 
                 Traveling = false
 
-                warn(
-                    "[TRADE] Arrived in Trade World."
+                TravelRequestSent = false
+
+
+                SetStatus(
+                    "TRADE WORLD",
+                    CountTargetPets().Total,
+                    "ARRIVED"
                 )
 
-                return
+
+                warn(
+                    "========================================"
+                )
+
+                warn(
+                    "[TRAVEL] ARRIVED IN TRADE WORLD"
+                )
+
+                warn(
+                    "[TRAVEL] PlaceId:",
+                    PlaceId
+                )
+
+                warn(
+                    "========================================"
+                )
+
+
+                break
 
             end
 
 
             --============================================
-            -- MASIH MAIN WORLD
+            -- STILL MAIN WORLD
             --============================================
 
-            if game.PlaceId == MAIN_WORLD then
+            if PlaceId == MAIN_WORLD then
 
                 SetStatus(
                     "MAIN WORLD",
@@ -932,16 +1033,38 @@ local function TravelToTradeWorld()
 
     end)
 
+
+    return true
+
 end
 
 
-
-
 --========================================================
--- MAIN WORLD
+-- MAIN WORLD CHECK
 --========================================================
 
 local function CheckMainWorld()
+
+    --====================================================
+    -- DO NOT TOUCH ROUTER DURING TRAVEL
+    --====================================================
+
+    if Traveling then
+
+        SetStatus(
+            "MAIN WORLD",
+            CountSpringtideEgg(),
+            "TRAVELING TO TRADE"
+        )
+
+        return
+
+    end
+
+
+    --====================================================
+    -- COUNT EGG
+    --====================================================
 
     local EggCount =
         CountSpringtideEgg()
@@ -954,7 +1077,7 @@ local function CheckMainWorld()
 
 
     --====================================================
-    -- EGG HABIS
+    -- EGG EMPTY
     --====================================================
 
     if EggCount <= 0 then
@@ -975,7 +1098,7 @@ local function CheckMainWorld()
 
 
     --====================================================
-    -- EGG MASIH ADA
+    -- EGG AVAILABLE
     --====================================================
 
     SetStatus(
@@ -985,6 +1108,10 @@ local function CheckMainWorld()
     )
 
 
+    --====================================================
+    -- START AUTOHATCH
+    --====================================================
+
     if not AutoHatchStarted then
 
         AutoHatchStarted =
@@ -992,19 +1119,43 @@ local function CheckMainWorld()
 
 
         warn(
-            "SPRINGTIDE EGG > 0"
+            "========================================"
         )
 
         warn(
-            "START AUTOHATCH"
+            "[AUTOHATCH] Springtide Egg > 0"
+        )
+
+        warn(
+            "[AUTOHATCH] Starting..."
+        )
+
+        warn(
+            "========================================"
         )
 
 
         task.spawn(function()
 
-            ExecuteScript(
-                AUTOHATCH_URL
-            )
+            local Success =
+                ExecuteScript(
+                    AUTOHATCH_URL
+                )
+
+
+            if Success then
+
+                warn(
+                    "[AUTOHATCH] Executed."
+                )
+
+            else
+
+                warn(
+                    "[AUTOHATCH] Execute failed."
+                )
+
+            end
 
         end)
 
@@ -1014,10 +1165,14 @@ end
 
 
 --========================================================
--- TRADE WORLD
+-- TRADE WORLD CHECK
 --========================================================
 
 local function CheckTradeWorld()
+
+    --====================================================
+    -- COUNT PETS
+    --====================================================
 
     local Counts =
         CountTargetPets()
@@ -1028,11 +1183,11 @@ local function CheckTradeWorld()
 
 
     warn(
-        "================================"
+        "========================================"
     )
 
     warn(
-        "TRADE WORLD"
+        "[TRADE WORLD]"
     )
 
     warn(
@@ -1056,7 +1211,7 @@ local function CheckTradeWorld()
     )
 
     warn(
-        "================================"
+        "========================================"
     )
 
 
@@ -1074,11 +1229,11 @@ local function CheckTradeWorld()
 
 
         warn(
-            "TARGET PET TOTAL >= 300"
+            "[TRADE] Target total >= 300"
         )
 
         warn(
-            "KICK PLAYER"
+            "[TRADE] Kicking player."
         )
 
 
@@ -1106,6 +1261,10 @@ local function CheckTradeWorld()
     )
 
 
+    --====================================================
+    -- START BUYTRASH
+    --====================================================
+
     if not BuyTrashStarted then
 
         BuyTrashStarted =
@@ -1113,19 +1272,43 @@ local function CheckTradeWorld()
 
 
         warn(
-            "TARGET PET TOTAL < 300"
+            "========================================"
         )
 
         warn(
-            "START BUYTRASH"
+            "[BUYTRASH] Target total < 300"
+        )
+
+        warn(
+            "[BUYTRASH] Starting..."
+        )
+
+        warn(
+            "========================================"
         )
 
 
         task.spawn(function()
 
-            ExecuteScript(
-                BUYTRASH_URL
-            )
+            local Success =
+                ExecuteScript(
+                    BUYTRASH_URL
+                )
+
+
+            if Success then
+
+                warn(
+                    "[BUYTRASH] Executed."
+                )
+
+            else
+
+                warn(
+                    "[BUYTRASH] Execute failed."
+                )
+
+            end
 
         end)
 
@@ -1142,7 +1325,7 @@ task.wait(3)
 
 
 --========================================================
--- INITIAL CHECK
+-- INITIAL WORLD CHECK
 --========================================================
 
 if game.PlaceId == MAIN_WORLD then
@@ -1173,7 +1356,7 @@ end
 
 
 --========================================================
--- 10 SECOND LOOP
+-- MAIN ROUTER LOOP
 --========================================================
 
 while task.wait(
@@ -1185,24 +1368,22 @@ while task.wait(
 
 
     --====================================================
-    -- MAIN WORLD
+    -- TRADE WORLD HAS PRIORITY
     --====================================================
 
-    if PlaceId == MAIN_WORLD then
+    if PlaceId == TRADE_WORLD then
 
-        SetNextCheck(
-            CHECK_INTERVAL
-        )
+        -- Kalau sebelumnya sedang travel,
+        -- tandai sudah selesai.
 
+        if Traveling then
 
-        CheckMainWorld()
+            Traveling = false
 
+            TravelRequestSent = false
 
-    --====================================================
-    -- TRADE WORLD
-    --====================================================
+        end
 
-    elseif PlaceId == TRADE_WORLD then
 
         SetNextCheck(
             CHECK_INTERVAL
@@ -1210,6 +1391,47 @@ while task.wait(
 
 
         CheckTradeWorld()
+
+
+    --====================================================
+    -- TRAVELING
+    --====================================================
+    --
+    -- Ini penting:
+    --
+    -- Jangan jalankan CheckMainWorld().
+    -- Jangan kirim TravelRemote lagi.
+    -- Jangan reset Traveling.
+    --
+    -- Biarkan monitor travel yang menangani.
+    --====================================================
+
+    elseif Traveling then
+
+        SetNextCheck(
+            "--"
+        )
+
+
+        SetStatus(
+            "MAIN WORLD",
+            CountSpringtideEgg(),
+            "TRAVELING TO TRADE"
+        )
+
+
+    --====================================================
+    -- MAIN WORLD
+    --====================================================
+
+    elseif PlaceId == MAIN_WORLD then
+
+        SetNextCheck(
+            CHECK_INTERVAL
+        )
+
+
+        CheckMainWorld()
 
 
     --====================================================
