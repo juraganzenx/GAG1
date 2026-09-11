@@ -746,42 +746,54 @@ local function CountTargetPets()
 end
 
 
+
 --========================================================
 -- TRAVEL TO TRADE WORLD
 --========================================================
 --
--- BARU:
+-- Menggunakan:
 --
 -- GameEvents
 --   └── TradeWorld
 --        └── TravelToTradeWorld
 --
--- Tidak lagi memakai:
--- TeleportService:Teleport()
+-- Tidak memakai TeleportService:Teleport()
 --
+-- PENTING:
+-- Tidak menganggap masih di Main World sebagai
+-- "TRAVEL FAILED".
+--
+-- Setelah FireServer(), status tetap:
+--     TRAVELING TO TRADE
+--
+-- Sampai PlaceId benar-benar berubah.
 --========================================================
 
 local function TravelToTradeWorld()
 
     if Traveling then
-
         return
-
     end
 
+
+    --====================================================
+    -- SUDAH DI TRADE WORLD
+    --====================================================
 
     if game.PlaceId == TRADE_WORLD then
 
-        Traveling =
-            false
+        Traveling = false
 
         return
 
     end
 
 
-    Traveling =
-        true
+    --====================================================
+    -- LOCK TRAVEL
+    --====================================================
+
+    Traveling = true
 
 
     SetStatus(
@@ -812,6 +824,10 @@ local function TravelToTradeWorld()
     )
 
 
+    --====================================================
+    -- FIRE REMOTE
+    --====================================================
+
     local Success, ErrorMessage =
         pcall(function()
 
@@ -821,65 +837,104 @@ local function TravelToTradeWorld()
         end)
 
 
+    --====================================================
+    -- REMOTE ERROR
+    --====================================================
+
     if not Success then
 
         warn(
-            "[TRADE TRAVEL ERROR]",
-            tostring(
-                ErrorMessage
-            )
+            "[TRADE TRAVEL] Remote error:",
+            tostring(ErrorMessage)
         )
 
-
-        Traveling =
-            false
-
+        -- Hanya error FireServer yang dianggap gagal.
+        Traveling = false
 
         SetStatus(
             "MAIN WORLD",
             CountSpringtideEgg(),
-            "TRAVEL FAILED"
+            "TRAVEL ERROR"
         )
-
 
         return
 
     end
 
 
+    --====================================================
+    -- REMOTE BERHASIL DIKIRIM
+    --====================================================
+
     warn(
         "[TRADE] Travel request sent."
     )
 
 
+    SetStatus(
+        "MAIN WORLD",
+        CountSpringtideEgg(),
+        "TRAVELING TO TRADE"
+    )
+
+
     --====================================================
-    -- Beri waktu untuk server memproses
+    -- MONITOR PERPINDAHAN
+    --====================================================
+    --
+    -- Tidak ada timeout.
+    -- Tidak ada "TRAVEL FAILED" hanya karena masih
+    -- berada di Main World.
+    --
+    -- Monitor berhenti sendiri ketika PlaceId
+    -- sudah berubah menjadi Trade World.
     --====================================================
 
-    task.delay(
-        5,
-        function()
+    task.spawn(function()
 
-            if game.PlaceId
-                ~= TRADE_WORLD then
+        while Traveling do
 
-                Traveling =
-                    false
+            task.wait(1)
+
+
+            --============================================
+            -- SUDAH SAMPAI TRADE WORLD
+            --============================================
+
+            if game.PlaceId == TRADE_WORLD then
+
+                Traveling = false
 
                 warn(
-                    "[TRADE] Still in Main World."
+                    "[TRADE] Arrived in Trade World."
                 )
 
-                warn(
-                    "[TRADE] Travel request may have failed."
+                return
+
+            end
+
+
+            --============================================
+            -- MASIH MAIN WORLD
+            --============================================
+
+            if game.PlaceId == MAIN_WORLD then
+
+                SetStatus(
+                    "MAIN WORLD",
+                    CountSpringtideEgg(),
+                    "TRAVELING TO TRADE"
                 )
 
             end
 
         end
-    )
+
+    end)
 
 end
+
+
 
 
 --========================================================
