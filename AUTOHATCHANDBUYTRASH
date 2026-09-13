@@ -1,13 +1,12 @@
---========================================================
+--======================================a==================
 -- WORLD ROUTER + SIMPLE STATUS GUI
 --========================================================
 -- MAIN WORLD:
---   Zen Egg > 0 -> AUTOHATCH
---   Zen Egg = 0 + Shiba Inu > 0 -> AUTOHATCH
---   Zen Egg = 0 + Shiba Inu = 0 -> TRAVEL TO TRADE WORLD
+--   Springtide Egg > 0 -> AUTOHATCH
+--   Springtide Egg = 0 -> TRAVEL TO TRADE WORLD
 --
 -- TRADE WORLD:
---   Shiba Inu + Tanchozuru + Nihonzaru < 300 -> BUYTRASH
+--   Spring Bee + Jerboa + Nyala < 300 -> BUYTRASH
 --   Total >= 300 -> KICK
 --
 -- CHECK:
@@ -455,7 +454,7 @@ end
 
 
 --========================================================
--- COUNT Zen Egg
+-- COUNT SPRINGTIDE EGG
 --========================================================
 
 local function CountSpringtideEgg()
@@ -478,7 +477,7 @@ local function CountSpringtideEgg()
         ) do
 
             if Tool:IsA("Tool")
-            and Tool:GetAttribute("h") == "Zen Egg" then
+            and Tool:GetAttribute("h") == "Springtide Egg" then
 
                 Count += 1
 
@@ -504,7 +503,7 @@ local function CountSpringtideEgg()
         ) do
 
             if Tool:IsA("Tool")
-            and Tool:GetAttribute("h") == "Zen Egg" then
+            and Tool:GetAttribute("h") == "Springtide Egg" then
 
                 Count += 1
 
@@ -526,11 +525,9 @@ end
 
 local TARGET_PETS = {
 
-    ["Shiba Inu"] = true,
-    ["Tanchozuru"] = true,
-    ["Nihonzaru"] = true,
-    ["Kappa"] = true,
-    ["Tanuki"] = true,
+    ["Spring Bee"] = true,
+    ["Jerboa"] = true,
+    ["Nyala"] = true,
 
 }
 
@@ -573,9 +570,9 @@ local function CountTargetPets()
 
     local Counts = {
 
-        ["Shiba Inu"] = 0,
-        ["Tanchozuru"] = 0,
-        ["Nihonzaru"] = 0,
+        ["Spring Bee"] = 0,
+        ["Jerboa"] = 0,
+        ["Nyala"] = 0,
 
     }
 
@@ -639,9 +636,9 @@ local function CountTargetPets()
 
 
     Counts.Total =
-        Counts["Shiba Inu"]
-        + Counts["Tanchozuru"]
-        + Counts["Nihonzaru"]
+        Counts["Spring Bee"]
+        + Counts["Jerboa"]
+        + Counts["Nyala"]
 
 
     return Counts
@@ -709,9 +706,7 @@ local function TravelToTradeWorld()
 
     SetStatus(
         "MAIN WORLD",
-        "Egg: " .. CountSpringtideEgg()
-            .. " | Shiba: "
-            .. CountTargetPets()["Shiba Inu"],
+        CountSpringtideEgg(),
         "TRAVELING TO TRADE"
     )
 
@@ -796,9 +791,7 @@ local function TravelToTradeWorld()
 
     SetStatus(
         "MAIN WORLD",
-        "Egg: " .. CountSpringtideEgg()
-            .. " | Shiba: "
-            .. CountTargetPets()["Shiba Inu"],
+        CountSpringtideEgg(),
         "TRAVELING TO TRADE"
     )
 
@@ -896,9 +889,7 @@ local function CheckMainWorld()
 
         SetStatus(
             "MAIN WORLD",
-            "Egg: " .. CountSpringtideEgg()
-                .. " | Shiba: "
-                .. CountTargetPets()["Shiba Inu"],
+            CountSpringtideEgg(),
             "TRAVELING TO TRADE"
         )
 
@@ -914,65 +905,43 @@ local function CheckMainWorld()
     local EggCount =
         CountSpringtideEgg()
 
-    local PetCounts =
-        CountTargetPets()
-
-    local ShibaCount =
-        PetCounts["Shiba Inu"]
-
 
     warn(
-        "[MAIN WORLD] Zen Egg:",
+        "[MAIN WORLD] Springtide Egg:",
         EggCount
     )
 
-    warn(
-        "[MAIN WORLD] Shiba Inu:",
-        ShibaCount
-    )
-
 
     --====================================================
-    -- AUTOHATCH
-    --====================================================
-    --
-    -- Zen Egg > 0
-    -- OR
-    -- Shiba Inu > 0
-    --
-    -- Selama salah satu masih ada:
-    --     AUTOHATCH
+    -- EGG EMPTY
     --====================================================
 
-    if EggCount > 0
-    or ShibaCount > 0 then
+    if EggCount <= 0 then
 
         SetStatus(
             "MAIN WORLD",
-            "Egg: " .. EggCount
-                .. " | Shiba: "
-                .. ShibaCount,
-            "AUTOHATCH"
-        )
-
-    else
-
-        --================================================
-        -- NO EGG + NO SHIBA
-        --================================================
-
-        SetStatus(
-            "MAIN WORLD",
-            "Egg: 0 | Shiba: 0",
+            EggCount,
             "TRAVELING TO TRADE"
         )
 
 
         TravelToTradeWorld()
 
+
         return
 
     end
+
+
+    --====================================================
+    -- EGG AVAILABLE
+    --====================================================
+
+    SetStatus(
+        "MAIN WORLD",
+        EggCount,
+        "AUTOHATCH"
+    )
 
 
     --====================================================
@@ -989,7 +958,7 @@ local function CheckMainWorld()
         )
 
         warn(
-            "[AUTOHATCH] Zen Egg > 0 OR Shiba Inu > 0"
+            "[AUTOHATCH] Springtide Egg > 0"
         )
 
         warn(
@@ -1057,18 +1026,18 @@ local function CheckTradeWorld()
     )
 
     warn(
-        "Shiba Inu:",
-        Counts["Shiba Inu"]
+        "Spring Bee:",
+        Counts["Spring Bee"]
     )
 
     warn(
-        "Tanchozuru:",
-        Counts["Tanchozuru"]
+        "Jerboa:",
+        Counts["Jerboa"]
     )
 
     warn(
-        "Nihonzaru:",
-        Counts["Nihonzaru"]
+        "Nyala:",
+        Counts["Nyala"]
     )
 
     warn(
@@ -1107,7 +1076,7 @@ local function CheckTradeWorld()
 
 
         LocalPlayer:Kick(
-            "Shiba Inu + Tanchozuru + Nihonzaru reached 300."
+            "Spring Bee + Jerboa + Nyala reached 300."
         )
 
 
@@ -1273,9 +1242,7 @@ while task.wait(CHECK_INTERVAL) do
 
         SetStatus(
             "MAIN WORLD",
-            "Egg: " .. CountSpringtideEgg()
-                .. " | Shiba: "
-                .. CountTargetPets()["Shiba Inu"],
+            CountSpringtideEgg(),
             "TRAVELING TO TRADE"
         )
 
