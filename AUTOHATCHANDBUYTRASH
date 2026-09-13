@@ -1,9 +1,10 @@
---======================================a==================
+--========================================================
 -- WORLD ROUTER + SIMPLE STATUS GUI
 --========================================================
 -- MAIN WORLD:
 --   Zen Egg > 0 -> AUTOHATCH
---   Zen Egg = 0 -> TRAVEL TO TRADE WORLD
+--   Zen Egg = 0 + Shiba Inu > 0 -> AUTOHATCH
+--   Zen Egg = 0 + Shiba Inu = 0 -> TRAVEL TO TRADE WORLD
 --
 -- TRADE WORLD:
 --   Shiba Inu + Tanchozuru + Nihonzaru < 300 -> BUYTRASH
@@ -708,7 +709,9 @@ local function TravelToTradeWorld()
 
     SetStatus(
         "MAIN WORLD",
-        CountSpringtideEgg(),
+        "Egg: " .. CountSpringtideEgg()
+            .. " | Shiba: "
+            .. CountTargetPets()["Shiba Inu"],
         "TRAVELING TO TRADE"
     )
 
@@ -793,7 +796,9 @@ local function TravelToTradeWorld()
 
     SetStatus(
         "MAIN WORLD",
-        CountSpringtideEgg(),
+        "Egg: " .. CountSpringtideEgg()
+            .. " | Shiba: "
+            .. CountTargetPets()["Shiba Inu"],
         "TRAVELING TO TRADE"
     )
 
@@ -891,7 +896,9 @@ local function CheckMainWorld()
 
         SetStatus(
             "MAIN WORLD",
-            CountSpringtideEgg(),
+            "Egg: " .. CountSpringtideEgg()
+                .. " | Shiba: "
+                .. CountTargetPets()["Shiba Inu"],
             "TRAVELING TO TRADE"
         )
 
@@ -907,43 +914,65 @@ local function CheckMainWorld()
     local EggCount =
         CountSpringtideEgg()
 
+    local PetCounts =
+        CountTargetPets()
+
+    local ShibaCount =
+        PetCounts["Shiba Inu"]
+
 
     warn(
         "[MAIN WORLD] Zen Egg:",
         EggCount
     )
 
+    warn(
+        "[MAIN WORLD] Shiba Inu:",
+        ShibaCount
+    )
+
 
     --====================================================
-    -- EGG EMPTY
+    -- AUTOHATCH
+    --====================================================
+    --
+    -- Zen Egg > 0
+    -- OR
+    -- Shiba Inu > 0
+    --
+    -- Selama salah satu masih ada:
+    --     AUTOHATCH
     --====================================================
 
-    if EggCount <= 0 then
+    if EggCount > 0
+    or ShibaCount > 0 then
 
         SetStatus(
             "MAIN WORLD",
-            EggCount,
+            "Egg: " .. EggCount
+                .. " | Shiba: "
+                .. ShibaCount,
+            "AUTOHATCH"
+        )
+
+    else
+
+        --================================================
+        -- NO EGG + NO SHIBA
+        --================================================
+
+        SetStatus(
+            "MAIN WORLD",
+            "Egg: 0 | Shiba: 0",
             "TRAVELING TO TRADE"
         )
 
 
         TravelToTradeWorld()
 
-
         return
 
     end
-
-
-    --====================================================
-    -- EGG AVAILABLE
-    --====================================================
-
-    SetStatus(
-        "MAIN WORLD",
-        EggCount,
-        "AUTOHATCH"
-    )
 
 
     --====================================================
@@ -960,7 +989,7 @@ local function CheckMainWorld()
         )
 
         warn(
-            "[AUTOHATCH] Zen Egg > 0"
+            "[AUTOHATCH] Zen Egg > 0 OR Shiba Inu > 0"
         )
 
         warn(
@@ -1244,7 +1273,9 @@ while task.wait(CHECK_INTERVAL) do
 
         SetStatus(
             "MAIN WORLD",
-            CountSpringtideEgg(),
+            "Egg: " .. CountSpringtideEgg()
+                .. " | Shiba: "
+                .. CountTargetPets()["Shiba Inu"],
             "TRAVELING TO TRADE"
         )
 
