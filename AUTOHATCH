@@ -204,7 +204,10 @@ local DefaultConfig = {
 
     SELL_DELAY = 0,
 
-    HATCH_DELAY = 0
+    HATCH_DELAY = 0,
+
+    -- STARTUP: saat execute langsung EQUIP SEAL -> SELL sekali
+    STARTUP_SELL = true
 }
 
 
@@ -4140,6 +4143,82 @@ end
 
 
 --==================================================
+-- INITIAL STARTUP SELL
+-- FLOW:
+--   EXECUTE
+--   -> EQUIP SEAL
+--   -> SELL SELECTED PET
+--   -> CONTINUE NORMAL AUTO HATCH
+--==================================================
+
+local StartupSellDone =
+    false
+
+local function RunInitialSell()
+    if StartupSellDone
+        or not Config.STARTUP_SELL then
+        return
+    end
+
+    StartupSellDone =
+        true
+
+    -- Pastikan script aktif supaya state SELL bisa berjalan
+    Running =
+        true
+
+    SetState(
+        "STARTUP SELL"
+    )
+
+    UnequipAllPets()
+
+    task.wait(0.2)
+
+    if not Running
+        or TradeRunning then
+        return
+    end
+
+    -- Equip Seal terlebih dahulu
+    if not SetSeals() then
+        Log(
+            "STARTUP SELL: SEAL GAGAL"
+        )
+        return
+    end
+
+    if not Running
+        or TradeRunning then
+        return
+    end
+
+    task.wait(
+        math.max(
+            0.1,
+            Config.AFTER_EQUIP_WAIT
+        )
+    )
+
+    -- Setelah Seal aktif baru SELL
+    SellTargetPets()
+
+    task.wait(0.5)
+
+    -- Lepas Seal setelah proses sell selesai
+    UnequipAllPets()
+
+    SetState(
+        "STARTUP SELL DONE"
+    )
+
+    Log(
+        "STARTUP SELL SELESAI"
+    )
+end
+
+
+--==================================================
 -- PLACE EGGS
 --==================================================
 
@@ -5591,6 +5670,13 @@ task.spawn(function()
     )
 
 end)
+
+
+--==================================================
+-- RUN STARTUP SELL BEFORE TRADE MONITOR
+--==================================================
+
+RunInitialSell()
 
 
 --==================================================
