@@ -4,14 +4,14 @@
 --//
 --// AUTO TRADE:
 --// TARGET PLAYER = FROM GITHUB addusername.json
---// TARGET Kitsune < 12
---// LOCAL Kitsune > 12
+--// TARGET PERYTON < 12
+--// LOCAL PERYTON > 12
 --//
 --// TRADE FLOW:
 --// STOP ALL STATE
 --// -> EQUIP TRADING TICKET xN
 --// -> SEND REQUEST
---// -> ADD MAX 20 Kitsune
+--// -> ADD MAX 20 PERYTON
 --// -> ACCEPT
 --// -> CONFIRM
 --// -> UNEQUIP ALL TOOLS
@@ -131,7 +131,7 @@ local TRADE_TARGET_URL =
 local TRADE_TARGET_CACHE =
     "AutoHatch_TradeTargets.json"
 
-local TRADE_MAX_Kitsune =
+local TRADE_MAX_PERYTON =
     20
 
 local TRADE_ADD_DELAY =
@@ -204,10 +204,7 @@ local DefaultConfig = {
 
     SELL_DELAY = 0,
 
-    HATCH_DELAY = 0,
-
-    -- STARTUP: saat execute langsung EQUIP SEAL -> SELL sekali
-    STARTUP_SELL = true
+    HATCH_DELAY = 0
 }
 
 
@@ -2870,7 +2867,7 @@ end
 
 
 --==================================================
--- Zen Egg
+-- SPRINGTIDE EGG
 --==================================================
 
 local function FindSpringtideEgg()
@@ -2895,7 +2892,7 @@ local function FindSpringtideEgg()
 
                 if Tool:IsA("Tool")
                     and Tool:GetAttribute("h")
-                    == "Zen Egg" then
+                    == "Springtide Egg" then
 
                     return Tool
 
@@ -2926,7 +2923,7 @@ local function EquipEgg()
     if not Egg then
 
         Log(
-            "Zen Egg NOT FOUND"
+            "SPRINGTIDE EGG NOT FOUND"
         )
 
         return nil
@@ -4143,82 +4140,6 @@ end
 
 
 --==================================================
--- INITIAL STARTUP SELL
--- FLOW:
---   EXECUTE
---   -> EQUIP SEAL
---   -> SELL SELECTED PET
---   -> CONTINUE NORMAL AUTO HATCH
---==================================================
-
-local StartupSellDone =
-    false
-
-local function RunInitialSell()
-    if StartupSellDone
-        or not Config.STARTUP_SELL then
-        return
-    end
-
-    StartupSellDone =
-        true
-
-    -- Pastikan script aktif supaya state SELL bisa berjalan
-    Running =
-        true
-
-    SetState(
-        "STARTUP SELL"
-    )
-
-    UnequipAllPets()
-
-    task.wait(0.2)
-
-    if not Running
-        or TradeRunning then
-        return
-    end
-
-    -- Equip Seal terlebih dahulu
-    if not SetSeals() then
-        Log(
-            "STARTUP SELL: SEAL GAGAL"
-        )
-        return
-    end
-
-    if not Running
-        or TradeRunning then
-        return
-    end
-
-    task.wait(
-        math.max(
-            0.1,
-            Config.AFTER_EQUIP_WAIT
-        )
-    )
-
-    -- Setelah Seal aktif baru SELL
-    SellTargetPets()
-
-    task.wait(0.5)
-
-    -- Lepas Seal setelah proses sell selesai
-    UnequipAllPets()
-
-    SetState(
-        "STARTUP SELL DONE"
-    )
-
-    Log(
-        "STARTUP SELL SELESAI"
-    )
-end
-
-
---==================================================
 -- PLACE EGGS
 --==================================================
 
@@ -4500,7 +4421,7 @@ end
 -- TRADE UTIL
 --==================================================
 
-local function GetKitsuneFromContainer(
+local function GetPerytonFromContainer(
     Container,
     MaxCount
 )
@@ -4531,7 +4452,7 @@ local function GetKitsuneFromContainer(
 
 
             if PetName ==
-                "Kitsune"
+                "Peryton"
                 and UUID then
 
                 table.insert(
@@ -4563,13 +4484,13 @@ end
 
 
 --==================================================
--- LOCAL Kitsune COUNT
+-- LOCAL PERYTON COUNT
 --==================================================
 
-local function GetLocalKitsuneCount()
+local function GetLocalPerytonCount()
 
     local Count =
-        #GetKitsuneFromContainer(
+        #GetPerytonFromContainer(
             Backpack
         )
 
@@ -4580,7 +4501,7 @@ local function GetLocalKitsuneCount()
 
     if Character then
 
-        Count += #GetKitsuneFromContainer(
+        Count += #GetPerytonFromContainer(
             Character
         )
 
@@ -5001,10 +4922,10 @@ end
 
 
 --==================================================
--- GET TARGET Kitsune COUNT
+-- GET TARGET PERYTON COUNT
 --==================================================
 
-local function GetTargetKitsuneCount(
+local function GetTargetPerytonCount(
     Target
 )
 
@@ -5025,7 +4946,7 @@ local function GetTargetKitsuneCount(
 
     if TargetBackpack then
 
-        Count += #GetKitsuneFromContainer(
+        Count += #GetPerytonFromContainer(
             TargetBackpack
         )
 
@@ -5038,7 +4959,7 @@ local function GetTargetKitsuneCount(
 
     if TargetCharacter then
 
-        Count += #GetKitsuneFromContainer(
+        Count += #GetPerytonFromContainer(
             TargetCharacter
         )
 
@@ -5056,11 +4977,11 @@ end
 
 local function GetValidTradeTarget()
 
-    local LocalKitsune =
-        GetLocalKitsuneCount()
+    local LocalPeryton =
+        GetLocalPerytonCount()
 
 
-    if LocalKitsune <= 12 then
+    if LocalPeryton <= 12 then
 
         return nil
 
@@ -5080,13 +5001,13 @@ local function GetValidTradeTarget()
         if Target
             and Target ~= LP then
 
-            local TargetKitsune =
-                GetTargetKitsuneCount(
+            local TargetPeryton =
+                GetTargetPerytonCount(
                     Target
                 )
 
 
-            if TargetKitsune < 12 then
+            if TargetPeryton < 12 then
 
                 return Target
 
@@ -5246,13 +5167,13 @@ local function StateTradeRequest()
     end
 
 
-    local TargetKitsune =
-        GetTargetKitsuneCount(
+    local TargetPeryton =
+        GetTargetPerytonCount(
             Target
         )
 
-    local LocalKitsune =
-        GetLocalKitsuneCount()
+    local LocalPeryton =
+        GetLocalPerytonCount()
 
 
     Log(
@@ -5261,13 +5182,13 @@ local function StateTradeRequest()
     )
 
     Log(
-        "TARGET Kitsune:",
-        TargetKitsune
+        "TARGET PERYTON:",
+        TargetPeryton
     )
 
     Log(
-        "LOCAL Kitsune:",
-        LocalKitsune
+        "LOCAL PERYTON:",
+        LocalPeryton
     )
 
 
@@ -5275,8 +5196,8 @@ local function StateTradeRequest()
     -- FINAL CONDITION
     --==================================================
 
-    if TargetKitsune >= 12
-        or LocalKitsune <= 12 then
+    if TargetPeryton >= 12
+        or LocalPeryton <= 12 then
 
         TradeRunning =
             false
@@ -5358,20 +5279,20 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- GET Kitsune
+    -- GET PERYTON
     --==================================================
 
-    local Kitsunes =
-        GetKitsuneFromContainer(
+    local Perytons =
+        GetPerytonFromContainer(
             Backpack,
-            TRADE_MAX_Kitsune
+            TRADE_MAX_PERYTON
         )
 
 
-    if #Kitsunes == 0 then
+    if #Perytons == 0 then
 
         Log(
-            "NO Kitsune"
+            "NO PERYTON"
         )
 
 
@@ -5386,11 +5307,11 @@ local function StateTradeRequest()
 
 
     --==================================================
-    -- ADD Kitsune
+    -- ADD PERYTON
     --==================================================
 
     SetState(
-        "ADD Kitsune"
+        "ADD PERYTON"
     )
 
 
@@ -5399,7 +5320,7 @@ local function StateTradeRequest()
 
 
     for _, Pet in ipairs(
-        Kitsunes
+        Perytons
     ) do
 
         if not Running then
@@ -5423,7 +5344,7 @@ local function StateTradeRequest()
 
 
         if Added >=
-            TRADE_MAX_Kitsune then
+            TRADE_MAX_PERYTON then
 
             break
 
@@ -5445,7 +5366,7 @@ local function StateTradeRequest()
 
 
     Log(
-        "ADDED Kitsune:",
+        "ADDED PERYTON:",
         Added
     )
 
@@ -5673,13 +5594,6 @@ end)
 
 
 --==================================================
--- RUN STARTUP SELL BEFORE TRADE MONITOR
---==================================================
-
-RunInitialSell()
-
-
---==================================================
 -- TRADE MONITOR
 --==================================================
 
@@ -5873,7 +5787,7 @@ Log(
 
 Log(
     "TRADE MAX:",
-    TRADE_MAX_Kitsune
+    TRADE_MAX_PERYTON
 )
 
 Log(
