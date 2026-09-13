@@ -2,8 +2,8 @@
 -- WORLD ROUTER + SIMPLE STATUS GUI
 --========================================================
 -- MAIN WORLD:
---   Springtide Egg > 0 -> AUTOHATCH
---   Springtide Egg = 0 -> TRAVEL TO TRADE WORLD
+--   Zen Egg > 0 -> AUTOHATCH
+--   Zen Egg = 0 -> TRAVEL TO TRADE WORLD
 --
 -- TRADE WORLD:
 --   Spring Bee + Jerboa + Nyala < 300 -> BUYTRASH
@@ -454,7 +454,7 @@ end
 
 
 --========================================================
--- COUNT SPRINGTIDE EGG
+-- COUNT Zen Egg
 --========================================================
 
 local function CountSpringtideEgg()
@@ -477,7 +477,7 @@ local function CountSpringtideEgg()
         ) do
 
             if Tool:IsA("Tool")
-            and Tool:GetAttribute("h") == "Springtide Egg" then
+            and Tool:GetAttribute("h") == "Zen Egg" then
 
                 Count += 1
 
@@ -503,7 +503,7 @@ local function CountSpringtideEgg()
         ) do
 
             if Tool:IsA("Tool")
-            and Tool:GetAttribute("h") == "Springtide Egg" then
+            and Tool:GetAttribute("h") == "Zen Egg" then
 
                 Count += 1
 
@@ -907,7 +907,7 @@ local function CheckMainWorld()
 
 
     warn(
-        "[MAIN WORLD] Springtide Egg:",
+        "[MAIN WORLD] Zen Egg:",
         EggCount
     )
 
@@ -958,7 +958,7 @@ local function CheckMainWorld()
         )
 
         warn(
-            "[AUTOHATCH] Springtide Egg > 0"
+            "[AUTOHATCH] Zen Egg > 0"
         )
 
         warn(
