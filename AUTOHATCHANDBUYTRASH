@@ -6,7 +6,7 @@
 --   Zen Egg = 0 -> TRAVEL TO TRADE WORLD
 --
 -- TRADE WORLD:
---   Spring Bee + Jerboa + Nyala < 300 -> BUYTRASH
+--   Shiba Inu + Tanchozuru + Nihonzaru < 300 -> BUYTRASH
 --   Total >= 300 -> KICK
 --
 -- CHECK:
@@ -525,9 +525,11 @@ end
 
 local TARGET_PETS = {
 
-    ["Spring Bee"] = true,
-    ["Jerboa"] = true,
-    ["Nyala"] = true,
+    ["Shiba Inu"] = true,
+    ["Tanchozuru"] = true,
+    ["Nihonzaru"] = true,
+    ["Kappa"] = true,
+    ["Tanuki"] = true,
 
 }
 
@@ -570,9 +572,9 @@ local function CountTargetPets()
 
     local Counts = {
 
-        ["Spring Bee"] = 0,
-        ["Jerboa"] = 0,
-        ["Nyala"] = 0,
+        ["Shiba Inu"] = 0,
+        ["Tanchozuru"] = 0,
+        ["Nihonzaru"] = 0,
 
     }
 
@@ -636,9 +638,9 @@ local function CountTargetPets()
 
 
     Counts.Total =
-        Counts["Spring Bee"]
-        + Counts["Jerboa"]
-        + Counts["Nyala"]
+        Counts["Shiba Inu"]
+        + Counts["Tanchozuru"]
+        + Counts["Nihonzaru"]
 
 
     return Counts
@@ -1026,18 +1028,18 @@ local function CheckTradeWorld()
     )
 
     warn(
-        "Spring Bee:",
-        Counts["Spring Bee"]
+        "Shiba Inu:",
+        Counts["Shiba Inu"]
     )
 
     warn(
-        "Jerboa:",
-        Counts["Jerboa"]
+        "Tanchozuru:",
+        Counts["Tanchozuru"]
     )
 
     warn(
-        "Nyala:",
-        Counts["Nyala"]
+        "Nihonzaru:",
+        Counts["Nihonzaru"]
     )
 
     warn(
@@ -1076,7 +1078,7 @@ local function CheckTradeWorld()
 
 
         LocalPlayer:Kick(
-            "Spring Bee + Jerboa + Nyala reached 300."
+            "Shiba Inu + Tanchozuru + Nihonzaru reached 300."
         )
 
 
