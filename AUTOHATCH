@@ -25,6 +25,13 @@
 --// -> TIDAK POLLING
 --// -> HASIL DISIMPAN KE LOCAL JSON
 --//
+--// AUTO SELL / HATCH CONFIG:
+--// https://raw.githubusercontent.com/juraganzenx/roblox-jobs/refs/heads/main/autosell.json
+--// -> 1x SAAT EXECUTE
+--// -> HatchEgg = nama egg yang digunakan untuk hatch
+--// -> SellPets = daftar nama pet yang akan dijual
+--// -> SellKG = batas KG jual
+--//
 --// SELF USERNAME:
 --// -> OTOMATIS DIKECUALIKAN
 --//
@@ -151,6 +158,67 @@ local TRADE_CHECK_DELAY =
 
 
 --==================================================
+-- REMOTE AUTO SELL / HATCH CONFIG
+--==================================================
+-- Edit this JSON on GitHub to change the hatch egg,
+-- sell pet names, and sell KG limit.
+-- The file is loaded once when the script starts.
+
+local SELL_CONFIG_URL =
+    "https://raw.githubusercontent.com/juraganzenx/Config/refs/heads/main/AUTOHATCHANDMARKET.json"
+
+local RemoteSellConfig =
+    nil
+
+local RemoteConfigLoaded =
+    false
+
+
+local function LoadRemoteSellConfig()
+
+    local Success, Result =
+        pcall(function()
+
+            local Raw =
+                game:HttpGet(
+                    SELL_CONFIG_URL,
+                    true
+                )
+
+            return HttpService:JSONDecode(
+                Raw
+            )
+
+        end)
+
+
+    if Success
+        and type(Result) == "table" then
+
+        RemoteSellConfig =
+            Result
+
+        RemoteConfigLoaded =
+            true
+
+        return true
+
+    end
+
+
+    warn(
+        "[AUTOHATCH] FAILED TO LOAD autosell.json"
+    )
+
+    return false
+
+end
+
+
+LoadRemoteSellConfig()
+
+
+--==================================================
 -- SAVE
 --==================================================
 
@@ -174,6 +242,8 @@ local DefaultConfig = {
     TARGET_LIMIT = 30,
 
     MAX_EGG = 13,
+
+    HATCH_EGG = "Springtide Egg",
 
     SELL_KG_LIMIT = 3,
 
@@ -284,7 +354,56 @@ end
 local SelectedPets = {}
 
 
-if type(SavedData) == "table"
+--==================================================
+-- APPLY REMOTE SELL CONFIG
+--==================================================
+
+if RemoteConfigLoaded then
+
+    if type(RemoteSellConfig.HatchEgg) == "string"
+        and RemoteSellConfig.HatchEgg ~= "" then
+
+        Config.HATCH_EGG =
+            RemoteSellConfig.HatchEgg
+
+    end
+
+
+    if type(RemoteSellConfig.SellKG) == "number" then
+
+        Config.SELL_KG_LIMIT =
+            RemoteSellConfig.SellKG
+
+    end
+
+
+    if type(RemoteSellConfig.SellPets) == "table" then
+
+        for _, Name in ipairs(
+            RemoteSellConfig.SellPets
+        ) do
+
+            if type(Name) == "string"
+                and Name ~= "" then
+
+                table.insert(
+                    SelectedPets,
+                    Name
+                )
+
+            end
+
+        end
+
+    end
+
+end
+
+
+-- Fallback to local saved selection only if the remote
+-- config could not be loaded or has no SellPets list.
+if #SelectedPets == 0
+    and type(SavedData) == "table"
     and type(SavedData.SelectedPets) == "table" then
 
     for _, Name in ipairs(
@@ -2892,7 +3011,7 @@ local function FindSpringtideEgg()
 
                 if Tool:IsA("Tool")
                     and Tool:GetAttribute("h")
-                    == "Springtide Egg" then
+                    == Config.HATCH_EGG then
 
                     return Tool
 
@@ -2923,7 +3042,7 @@ local function EquipEgg()
     if not Egg then
 
         Log(
-            "SPRINGTIDE EGG NOT FOUND"
+            Config.HATCH_EGG .. " NOT FOUND"
         )
 
         return nil
@@ -4074,10 +4193,11 @@ local function SellTargetPets()
                 SellNames
             ) do
 
-                if Tool.Name:match(
-                    "^"
-                    .. Name
-                ) then
+                if string.sub(
+                    Tool.Name,
+                    1,
+                    #Name
+                ) == Name then
 
                     PetName =
                         Name
