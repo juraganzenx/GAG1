@@ -1,4 +1,4 @@
---//==================================================
+--//=======================================a===========
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
@@ -432,6 +432,17 @@ local TradeRunning =
     false
 
 local MainLoopStarted =
+    false
+
+--==================================================
+-- STARTUP SEAL -> SELL
+--==================================================
+-- Saat AUTO HATCH mulai:
+--   1. Equip Seal
+--   2. Pastikan Seal aktif
+--   3. Jalankan SELL
+--   4. Baru masuk normal routing
+local StartupSellDone =
     false
 
 local CurrentState =
@@ -5766,24 +5777,75 @@ local function StartMainLoop()
             if Running
                 and not TradeRunning then
 
-                UpdateTargetCount()
+                --==================================================
+                -- INITIAL STARTUP: SEAL -> SELL
+                --==================================================
+                if not StartupSellDone then
+
+                    SetState(
+                        "STARTUP SEAL"
+                    )
+
+                    if SetSeals() then
+
+                        if not Running
+                            or TradeRunning then
+                            task.wait(0.2)
+                        else
+
+                            task.wait(
+                                Config.AFTER_EQUIP_WAIT
+                            )
+
+                            if Running
+                                and not TradeRunning then
+
+                                SellTargetPets()
+
+                                StartupSellDone =
+                                    true
+
+                                Log(
+                                    "STARTUP SEAL -> SELL DONE"
+                                )
+                            end
+                        end
+
+                    else
+
+                        Log(
+                            "STARTUP SEAL FAILED - RETRY"
+                        )
+
+                        task.wait(
+                            math.max(
+                                1,
+                                Config.LOOP_DELAY
+                            )
+                        )
+                    end
+
+                else
+
+                    UpdateTargetCount()
 
 
                 local TargetCount =
                     GetTargetCount()
 
 
-                if TargetCount >=
-                    Config.TARGET_LIMIT then
+                    if TargetCount >=
+                        Config.TARGET_LIMIT then
 
-                    StateHighTarget()
+                        StateHighTarget()
 
-                else
+                    else
 
-                    StateLowTarget()
+                        StateLowTarget()
+
+                    end
 
                 end
-
 
                 task.wait(
                     math.max(
@@ -5834,6 +5896,9 @@ Toggle.MouseButton1Click:Connect(function()
     if not Running then
 
         TradeRunning =
+            false
+
+        StartupSellDone =
             false
 
         UnequipAllPets()
