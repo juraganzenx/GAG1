@@ -1,4 +1,4 @@
--- STARTUP FLOW: EQUIP SEAL -> SELL (< SELL_KG_LIMIT) -> NORMAL FLOW
+-- STARTUP FLOW: EQUIP SEAL -> SELL (< SELL_KG_LIMIT) -> NORMAL FLaOW
 --//==================================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
@@ -3235,12 +3235,29 @@ local function GetTargetCount()
         0
 
 
+    -- TARGET COUNT hanya menghitung pet yang benar-benar
+    -- memenuhi syarat SELL: KG < Config.SELL_KG_LIMIT.
+    -- Pet KG >= limit (contoh Shiba Inu 4 KG) DIABAIKAN.
     for _, PetName in ipairs(
         SelectedPets
     ) do
 
-        Total +=
-            #GetPets(PetName)
+        local Pets =
+            GetPets(PetName)
+
+        for _, Pet in ipairs(Pets) do
+
+            local KG =
+                tonumber(Pet.KG)
+
+            if KG
+                and KG < Config.SELL_KG_LIMIT then
+
+                Total += 1
+
+            end
+
+        end
 
     end
 
