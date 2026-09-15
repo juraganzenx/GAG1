@@ -1,4 +1,4 @@
---========================================================
+--=================================================a=======
 -- WORLD ROUTER + CONFIG FROM GITHUB
 --========================================================
 -- CONFIG:
@@ -278,8 +278,22 @@ local function CountTargetPets()
             local petType = GetPetType(tool)
 
             if petType then
-                counts[petType] = (counts[petType] or 0) + 1
-                total += 1
+                -- Only count pets below the configured SellKG limit.
+                -- Pets at or above the limit are ignored completely
+                -- for AUTOHATCH/TRAVEL/BUYTRASH/KICK target counting.
+                local kg = tonumber(
+                    string.match(
+                        tool.Name,
+                        "%[([%d%.]+)%s*[Kk][Gg]%]"
+                    )
+                ) or 0
+
+                local sellKG = tonumber(Config.SellKG) or 3
+
+                if kg < sellKG then
+                    counts[petType] = (counts[petType] or 0) + 1
+                    total += 1
+                end
             end
         end
     end
