@@ -1,4 +1,5 @@
---//=======================================a===========
+-- STARTUP FLOW: EQUIP SEAL -> SELL (< SELL_KG_LIMIT) -> NORMAL FLOW
+--//==================================================
 --// AUTO HATCH SPRINGTIDE + AUTO SELL + AUTO TRADE
 --// 24/7 OPTIMIZED VERSION
 --//
